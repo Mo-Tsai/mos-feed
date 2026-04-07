@@ -102,6 +102,7 @@ const DAN_CARDS = [
   { id:"d10", channel:"Dan Koe", tag:"槓桿", color:"#4A9E96", en:"The difference between a freelancer and a business owner is leverage. The freelancer gets paid for hours. The business owner builds systems that pay without the hours. The gap between these two is not talent — it's the willingness to stop trading time and start building assets.", zh:"自由工作者和企業主之間的差距是槓桿。自由工作者用小時換錢，企業主建立的系統在沒有小時投入的情況下繼續付錢。這兩者之間的差距不是才能，而是停止用時間換錢、開始建立資產的意願。", ja:"フリーランスと事業主の差はレバレッジだ。フリーランスは時間をお金に換える。事業主は、時間を投入しなくても収益を生み続ける仕組みを築く。この二つの差は才能ではない。時間の切り売りをやめて資産を築く覚悟があるかどうかだ。" },
 ];
 
+// ─── 今日新聞
 const NEWS_CARDS = [
   { id:"news_0", channel:"世界新聞", tag:"財經", color:"#C0604A", en:"Brent crude has surged 50% to $109.77 a barrel since the Iran war broke out on Feb 28, with Trump's 8 PM Tuesday deadline to reopen the Strait of Hormuz keeping markets on a knife's edge. Analysts warn oil could hit $150 if the strait stays closed, though futures are pricing in a ceasefire that would bring Brent back to $90 by August.", zh:"川普對伊朗發出最後通牒，要求在4月7日晚間8點前重新開放荷莫茲海峽，否則將轟炸伊朗的橋樑與發電廠。布倫特原油飆升至每桶109.77美元，較2月28日開戰以來上漲約50%；美國汽油均價已從戰前的2.98美元升至4.11美元。分析師警告，若海峽持續關閉，油價可能在數週內衝上150美元。", ja:"トランプ大統領がイランに最後通牒を発し、4月7日午後8時までにホルムズ海峡を再開放しなければイランの橋梁と発電所を爆撃すると警告。ブレント原油は1バレル109.77ドルに急騰し、2月28日の開戦以来約50%上昇。米国のガソリン平均価格も戦前の2.98ドルから4.11ドルに上昇した。アナリストは海峡の閉鎖が続けば数週間以内に原油価格が150ドルに達する可能性があると警告している。", url:"https://www.cnbc.com/2026/04/06/trump-iran-deadline-investors-markets-trade-deal-war-.html" },
   { id:"news_1", channel:"世界新聞", tag:"財經", color:"#C0604A", en:"Powell's Fed is stuck in a holding pattern at 3.50%-3.75% as energy-driven inflation from the Iran war blocks any rate cuts before late 2026. His term expires May 15, and Trump's nominee Kevin Warsh remains stalled in Senate confirmation.", zh:"聯準會維持利率在3.50%-3.75%不變，主席鮑威爾表示將以「臨時主席」身份留任至繼任者獲確認為止，其任期將於5月15日届滿。川普提名的鷹派人選Warsh在參議院遇阻，能源通膨高企讓降息窗口持續延後。", ja:"FRBは政策金利を3.50%〜3.75%に据え置き、パウエル議長は後任が承認されるまで「暫定議長」として留任すると表明した。任期は5月15日に満了する。トランプ大統領が指名したタカ派のWarsh氏は上院で難航しており、エネルギー由来のインフレ高止まりにより利下げの時期はさらに後ずれしている。", url:"https://www.cnbc.com/2026/03/18/powell-says-he-will-stay-on-as-head-of-the-fed-until-warsh-is-confirmed.html" },
@@ -126,6 +127,7 @@ const SOCIAL_CARDS = [
   { id:"social_8", channel:"社交雷達", tag:"設計餐飲", color:"#8B6BAE", en:"A striking new restaurant called Mariela is opening this April in Chicago's Loop, designed by Matthew Hunnel of Audacity with earthy tones and bold patterned interiors. Design is as intentional as the menu.", zh:"芝加哥Loop區新餐廳Mariela預計本月開幕，由主廚Rishi Kumar與Zubair Mohajir主理，融合東南亞、美洲與歐洲風味。室內設計由Audacity的Matthew Hunnel操刀，以柔和大地色調搭配大膽圖騰。", ja:"シカゴ・ループ地区の新レストラン「Mariela」が今月オープン予定。シェフのリシ・クマールとズバイル・モハジルが手がけ、東南亞、アメリカ大陸、ヨーロッパの味を融合。インテリアデザインはAudacityのマシュー・ハネルが担当し、柔らかなアースカラーに大胆なパターンを組み合わせている。", url:"https://www.modernluxury.com/most-anticipated-chicago-restaurant-openings/" },
 ];
 
+// ─── 書摘（靜態，不動）
 const BOOK_CARDS = [...NAVAL_CARDS, ...ELON_CARDS, ...DAN_CARDS];
 const TODAY_CARDS = [...NEWS_CARDS, ...SOCIAL_CARDS];
 const TABS = ["Today", "Bookshelf"];
