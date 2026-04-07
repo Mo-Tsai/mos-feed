@@ -11,65 +11,202 @@
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
+
   :root {
-    --bg: #111;
-    --bg-elevated: #161616;
-    --text: #ccc;
-    --text-secondary: #555;
-    --divider: #222;
-    --accent: #888;
+    --bg: #f5f1ea;
+    --bg-elevated: #ede9e1;
+    --text: #1c1a17;
+    --text-secondary: #8a8680;
+    --text-tertiary: #b8b4ae;
+    --divider: #ddd9d1;
+    --noise-opacity: 0.035;
   }
-  [data-theme="light"] {
-    --bg: #f0ede7;
-    --bg-elevated: #e8e4dd;
-    --text: #2a2725;
-    --text-secondary: #918e89;
-    --divider: #d5d1ca;
-    --accent: #777;
+
+  [data-theme="dark"] {
+    --bg: #0f0e0c;
+    --bg-elevated: #161410;
+    --text: #e8e4dc;
+    --text-secondary: #5a5650;
+    --text-tertiary: #383430;
+    --divider: #242018;
+    --noise-opacity: 0.06;
   }
+
   body {
     background: var(--bg);
     -webkit-font-smoothing: antialiased;
     font-family: Georgia, 'Times New Roman', serif;
-    transition: background 0.3s ease, color 0.3s ease;
+    transition: background 0.4s ease, color 0.4s ease;
+    position: relative;
   }
+
+  /* Paper texture overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    opacity: var(--noise-opacity);
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+    background-repeat: repeat;
+    background-size: 180px 180px;
+  }
+
+  /* All content above texture */
+  #root { position: relative; z-index: 1; }
+
   @keyframes fadeUp {
-    from { opacity: 0; transform: translateY(8px); }
+    from { opacity: 0; transform: translateY(12px); }
     to   { opacity: 1; transform: translateY(0); }
   }
-  ::-webkit-scrollbar { width: 3px; }
+
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+
+  ::-webkit-scrollbar { width: 2px; }
   ::-webkit-scrollbar-thumb { background: var(--divider); border-radius: 4px; }
 
+  /* Masthead */
+  .masthead-title {
+    font-family: Georgia, serif;
+    font-weight: 400;
+    font-style: italic;
+    letter-spacing: -0.02em;
+    color: var(--text);
+    line-height: 1;
+  }
+
+  /* Tab navigation — editorial style */
   .tab-nav {
-    display: flex; align-items: baseline; gap: 24px;
-    padding: 0 24px;
+    display: flex;
+    align-items: baseline;
+    gap: 28px;
+    padding: 0 32px;
   }
   .tab-nav button {
-    background: none; border: none; cursor: pointer;
-    white-space: nowrap; flex-shrink: 0;
+    background: none;
+    border: none;
+    cursor: pointer;
+    white-space: nowrap;
+    flex-shrink: 0;
     font-family: Georgia, serif;
     transition: all 0.3s ease;
     padding: 0;
+    line-height: 1.2;
   }
 
-  .refresh-btn {
-    display: block; margin: 0 auto 40px; padding: 8px 20px;
-    background: none; border: 1px solid var(--divider);
-    color: var(--text-secondary); font-family: monospace;
-    font-size: 11px; letter-spacing: 0.1em; cursor: pointer;
+  /* Sub-filter pills */
+  .sub-pill {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-family: 'Courier New', monospace;
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    padding: 4px 0;
     transition: all 0.2s ease;
+    border-bottom: 1px solid transparent;
   }
-  .refresh-btn:hover { border-color: var(--text-secondary); color: var(--text); }
 
+  /* Feed item */
+  .feed-item {
+    padding: 0 0 52px 0;
+    margin-bottom: 52px;
+    border-bottom: 1px solid var(--divider);
+    cursor: pointer;
+    animation: fadeUp 0.5s ease both;
+  }
+  .feed-item:last-child {
+    border-bottom: none;
+  }
+
+  /* Expand toggle */
+  .expand-row {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    margin-top: 16px;
+  }
+
+  /* Source link */
+  .source-link {
+    font-family: 'Courier New', monospace;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-decoration: none;
+    border-bottom: 1px solid var(--divider);
+    padding-bottom: 1px;
+    transition: all 0.2s ease;
+    color: var(--text-tertiary);
+  }
+  .source-link:hover {
+    color: var(--text-secondary);
+    border-color: var(--text-secondary);
+  }
+
+  /* Refresh button */
+  .refresh-btn {
+    display: block;
+    margin: 0 auto 60px;
+    padding: 10px 24px;
+    background: none;
+    border: 1px solid var(--divider);
+    color: var(--text-tertiary);
+    font-family: 'Courier New', monospace;
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.25s ease;
+  }
+  .refresh-btn:hover {
+    border-color: var(--text-secondary);
+    color: var(--text-secondary);
+  }
+
+  /* Theme toggle */
+  .theme-toggle {
+    position: fixed;
+    top: 28px;
+    right: 28px;
+    z-index: 100;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 15px;
+    color: var(--text-tertiary);
+    padding: 4px;
+    line-height: 1;
+    transition: color 0.3s ease;
+    font-family: 'Courier New', monospace;
+    letter-spacing: 0.05em;
+  }
+  .theme-toggle:hover { color: var(--text-secondary); }
+
+  /* Divider rule */
+  .rule { height: 1px; background: var(--divider); }
+
+  /* Running header — issue info */
+  .running-header {
+    font-family: 'Courier New', monospace;
+    font-size: 9px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--text-tertiary);
+  }
 </style>
 </head>
 <body data-theme="light">
 <div id="root"></div>
 
 <script type="text/babel">
-const { useState, useEffect, useRef, useCallback } = React;
+const { useState, useEffect, useRef, useCallback, useMemo } = React;
 
-// ─── Data ───────────────────────────────────────────────
+// ─── Data ─────────────────────────────────────────────────────────
 const NAVAL_CARDS = [
   { id: "n1", channel: "Naval", tag: "財富", zh: "財富是你睡覺時還在為你賺錢的資產。出賣時間無法致富——你需要的是擁有資產，而非租出生命。", en: "Wealth is assets that earn while you sleep. You won't get rich renting out your time.", color: "#7C6AF7" },
   { id: "n2", channel: "Naval", tag: "槓桿", zh: "程式碼和媒體是新時代最重要的槓桿——不需要任何人的許可，就能讓你的努力以指數級擴張。", en: "Code and media are the new leverage. They don't require permission and replicate at near-zero marginal cost.", color: "#7C6AF7" },
@@ -80,47 +217,43 @@ const NAVAL_CARDS = [
 ];
 
 const ELON_CARDS = [
-  { id: "e1", channel: "Elon", tag: "第一原理", zh: "不要用類比思考，要從第一原理出發。類比讓你複製過去；第一原理讓你重新定義未來。", en: "Think from first principles rather than by analogy. Analogies copy the past; first principles redefine the future.", color: "#E8A838" },
-  { id: "e2", channel: "Elon", tag: "The Algorithm", zh: "五步工程流程：質疑需求 → 刪除冗餘 → 簡化流程 → 加速執行 → 自動化。順序不能亂，否則你只是在更有效率地做錯誤的事。", en: "Question \u2192 Delete \u2192 Simplify \u2192 Accelerate \u2192 Automate. Never automate something that shouldn't exist.", color: "#E8A838" },
-  { id: "e3", channel: "Elon", tag: "失敗哲學", zh: "如果你沒在失敗，代表你根本不夠創新。失敗是創新的必要成本——SpaceX 前幾次爆炸只是數據收集。", en: "If things are not failing, you are not innovating enough. Failure is data collection, not shame.", color: "#E8A838" },
-  { id: "e4", channel: "Elon", tag: "使命", zh: "當某件事足夠重要，即使勝算不在你這邊，你也會去做。這不是樂觀，這是對重要性的判斷。", en: "When something is important enough, you do it even if the odds are not in your favor.", color: "#E8A838" },
-  { id: "e5", channel: "Elon", tag: "產品設計", zh: "任何需要說明書才能使用的產品，就是設計失敗。好的產品應該直覺到不需要教學。", en: "Any product that requires a training manual to use is poorly designed.", color: "#E8A838" },
-  { id: "e6", channel: "Elon", tag: "人才策略", zh: "好的制度應該讓普通人也能做出不凡的事——系統比個人更重要。讓公司依賴超級明星是早期最大的錯誤。", en: "Good systems let ordinary people do extraordinary things. Stars create dependency; systems create scale.", color: "#E8A838" },
+  { id: "e1", channel: "Elon", tag: "第一原理", zh: "不要用類比思考，要從第一原理出發。類比讓你複製過去；第一原理讓你重新定義未來。", en: "Think from first principles rather than by analogy. Analogies copy the past; first principles redefine the future.", color: "#C8903A" },
+  { id: "e2", channel: "Elon", tag: "The Algorithm", zh: "五步工程流程：質疑需求 → 刪除冗餘 → 簡化流程 → 加速執行 → 自動化。順序不能亂，否則你只是在更有效率地做錯誤的事。", en: "Question → Delete → Simplify → Accelerate → Automate. Never automate something that shouldn't exist.", color: "#C8903A" },
+  { id: "e3", channel: "Elon", tag: "失敗哲學", zh: "如果你沒在失敗，代表你根本不夠創新。失敗是創新的必要成本——SpaceX 前幾次爆炸只是數據收集。", en: "If things are not failing, you are not innovating enough. Failure is data collection, not shame.", color: "#C8903A" },
+  { id: "e4", channel: "Elon", tag: "使命", zh: "當某件事足夠重要，即使勝算不在你這邊，你也會去做。這不是樂觀，這是對重要性的判斷。", en: "When something is important enough, you do it even if the odds are not in your favor.", color: "#C8903A" },
+  { id: "e5", channel: "Elon", tag: "產品設計", zh: "任何需要說明書才能使用的產品，就是設計失敗。好的產品應該直覺到不需要教學。", en: "Any product that requires a training manual to use is poorly designed.", color: "#C8903A" },
+  { id: "e6", channel: "Elon", tag: "人才策略", zh: "好的制度應該讓普通人也能做出不凡的事——系統比個人更重要。讓公司依賴超級明星是早期最大的錯誤。", en: "Good systems let ordinary people do extraordinary things. Stars create dependency; systems create scale.", color: "#C8903A" },
 ];
 
 const DAN_CARDS = [
-  { id: "d1", channel: "Dan Koe", tag: "創造力", zh: "創意枯竭的根源是認知疲勞，由三件事造成：社會制約、生產力至上思維、注意力碎片化。停止多工，回歸深度。", en: "Creativity is buried by conditioning, productivity mindset, and fragmented attention. Return to depth.", color: "#4EABA4" },
-  { id: "d2", channel: "Dan Koe", tag: "一人公司", zh: "AI 降低了創作門檻，但提高了技術天花板。競爭者更多了，但真正努力的人反而更少——這是你的機會。", en: "AI lowers the floor but raises the ceiling. More competitors, fewer who actually try. That's your opportunity.", color: "#4EABA4" },
-  { id: "d3", channel: "Dan Koe", tag: "多元興趣", zh: "社會告訴你要專精一項技能，但多元興趣才是這個時代的超能力。關鍵是找一個「容器」把所有興趣整合成有意義的工作。", en: "Multiple interests aren't a weakness \u2014 they're a superpower. Find one container that makes them all profitable.", color: "#4EABA4" },
-  { id: "d4", channel: "Dan Koe", tag: "AI 時代", zh: "面對 AI 有三種人：抗拒者、觀望者、好奇者。歷史告訴我們：學會操作新機器的人勝出，等待的人被指數級拉開。", en: "Three responses to AI: resist, wait, or explore. History shows the curious always win.", color: "#4EABA4" },
-  { id: "d5", channel: "Dan Koe", tag: "意義", zh: "AI 時代「意義」將成為稀缺資源。人類的好奇心、掙扎與對地位的追求，是任何 AI 無法複製的價值來源。", en: "In the age of AI, meaning becomes the scarcest resource. Human curiosity and struggle are the last moats.", color: "#4EABA4" },
+  { id: "d1", channel: "Dan Koe", tag: "創造力", zh: "創意枯竭的根源是認知疲勞，由三件事造成：社會制約、生產力至上思維、注意力碎片化。停止多工，回歸深度。", en: "Creativity is buried by conditioning, productivity mindset, and fragmented attention. Return to depth.", color: "#4A9E96" },
+  { id: "d2", channel: "Dan Koe", tag: "一人公司", zh: "AI 降低了創作門檻，但提高了技術天花板。競爭者更多了，但真正努力的人反而更少——這是你的機會。", en: "AI lowers the floor but raises the ceiling. More competitors, fewer who actually try. That's your opportunity.", color: "#4A9E96" },
+  { id: "d3", channel: "Dan Koe", tag: "多元興趣", zh: "社會告訴你要專精一項技能，但多元興趣才是這個時代的超能力。關鍵是找一個「容器」把所有興趣整合成有意義的工作。", en: "Multiple interests aren't a weakness — they're a superpower. Find one container that makes them all profitable.", color: "#4A9E96" },
+  { id: "d4", channel: "Dan Koe", tag: "AI 時代", zh: "面對 AI 有三種人：抗拒者、觀望者、好奇者。歷史告訴我們：學會操作新機器的人勝出，等待的人被指數級拉開。", en: "Three responses to AI: resist, wait, or explore. History shows the curious always win.", color: "#4A9E96" },
+  { id: "d5", channel: "Dan Koe", tag: "意義", zh: "AI 時代「意義」將成為稀缺資源。人類的好奇心、掙扎與對地位的追求，是任何 AI 無法複製的價值來源。", en: "In the age of AI, meaning becomes the scarcest resource. Human curiosity and struggle are the last moats.", color: "#4A9E96" },
 ];
 
 const NEWS_CARDS = [
-  { id: "news_0", channel: "世界新聞", tag: "地緣政治", zh: "美國與伊朗緊張局勢持續升級，川普設下最後期限要求伊朗重新開放荷莫茲海峽，並警告若未達成協議可能對伊朗採取全面行動。各方正就可能的 45 天停火條件進行談判，中東局勢牽動全球油價與市場走勢。", en: "Trump sets ultimatum for Iran to reopen the Strait of Hormuz as ceasefire talks intensify amid escalating U.S.-Iran conflict.", color: "#E05C5C", url: "https://www.cnn.com/2026/04/06/world/live-news/iran-war-us-trump-oil" },
-  { id: "news_1", channel: "世界新聞", tag: "地緣政治", zh: "以色列入侵黎巴嫩，聲稱追擊伊朗支持的真主黨武裝分子。黎巴嫩表示已有超過 1,400 人在以色列入侵行動中喪生，其中包含至少 54 名醫護人員。", en: "Israel invades Lebanon in pursuit of Hezbollah fighters as the wider Iran regional war expands.", color: "#E05C5C", url: "https://edition.cnn.com/2026/04/06/world/live-news/iran-war-us-trump-oil" },
-  { id: "news_2", channel: "世界新聞", tag: "財經", zh: "美股在停火希望與升級風險間拉鋸，S&P 500 上漲 0.44% 收 6,611 點，那斯達克漲 0.54%。投資人關注本週即將公布的 CPI 與 PCE 數據，特斯拉因摩根大通看空預警持續走跌。", en: "U.S. stocks edge higher on ceasefire hopes with S&P 500 at 6,611; markets await CPI and PCE data this week.", color: "#E05C5C", url: "https://finance.yahoo.com/news/live/stock-market-today-oil-surges-futures-fall-as-trump-ratchets-up-threats-against-iran-002656735.html" },
-  { id: "news_3", channel: "世界新聞", tag: "AI", zh: "研究人員發表突破性方法，透過結合神經網路與人類式符號推理，可將 AI 能耗降低最高 100 倍，同時還能提升準確率。這項技術有望大幅解決 AI 產業的高耗能問題。", en: "Researchers unveil a hybrid neural-symbolic approach that slashes AI energy consumption by up to 100x while boosting accuracy.", color: "#E05C5C", url: "https://www.sciencedaily.com/releases/2026/04/260405003952.htm" },
-  { id: "news_4", channel: "世界新聞", tag: "AI", zh: "SpaceX 以 2,500 億美元收購 xAI，為 AI 產業史上最大併購案之一。同時 OpenAI 年化營收突破 250 億美元並籌備上市，Anthropic 年化營收也逼近 190 億美元，AI 產業進入整合期。", en: "SpaceX acquires xAI for $250B as OpenAI tops $25B annualized revenue and eyes an IPO in a consolidating AI industry.", color: "#E05C5C", url: "https://www.crescendo.ai/news/latest-ai-news-and-updates" },
+  { id: "news_0", channel: "世界新聞", tag: "地緣政治", zh: "美國與伊朗緊張局勢持續升級，川普設下最後期限要求伊朗重新開放荷莫茲海峽，各方正就可能的 45 天停火條件進行談判，中東局勢牽動全球油價與市場走勢。", en: "Trump sets ultimatum for Iran to reopen the Strait of Hormuz as ceasefire talks intensify amid escalating U.S.-Iran conflict.", color: "#C0604A", url: "https://www.cnn.com/2026/04/06/world/live-news/iran-war-us-trump-oil" },
+  { id: "news_1", channel: "世界新聞", tag: "地緣政治", zh: "以色列入侵黎巴嫩，聲稱追擊伊朗支持的真主黨武裝分子。黎巴嫩表示已有超過 1,400 人在以色列入侵行動中喪生，其中包含至少 54 名醫護人員。", en: "Israel invades Lebanon in pursuit of Hezbollah fighters as the wider Iran regional war expands.", color: "#C0604A", url: "https://edition.cnn.com/2026/04/06/world/live-news/iran-war-us-trump-oil" },
+  { id: "news_2", channel: "世界新聞", tag: "財經", zh: "美股在停火希望與升級風險間拉鋸，S&P 500 上漲 0.44% 收 6,611 點，那斯達克漲 0.54%。投資人關注本週即將公布的 CPI 與 PCE 數據，特斯拉因摩根大通看空預警持續走跌。", en: "U.S. stocks edge higher on ceasefire hopes with S&P 500 at 6,611; markets await CPI and PCE data this week.", color: "#C0604A", url: "https://finance.yahoo.com/news/live/stock-market-today" },
+  { id: "news_3", channel: "世界新聞", tag: "AI", zh: "研究人員發表突破性方法，透過結合神經網路與人類式符號推理，可將 AI 能耗降低最高 100 倍，同時還能提升準確率。這項技術有望大幅解決 AI 產業的高耗能問題。", en: "Researchers unveil a hybrid neural-symbolic approach that slashes AI energy consumption by up to 100x while boosting accuracy.", color: "#C0604A", url: "https://www.sciencedaily.com/releases/2026/04/260405003952.htm" },
+  { id: "news_4", channel: "世界新聞", tag: "AI", zh: "SpaceX 以 2,500 億美元收購 xAI，為 AI 產業史上最大併購案之一。同時 OpenAI 年化營收突破 250 億美元並籌備上市，Anthropic 年化營收也逼近 190 億美元，AI 產業進入整合期。", en: "SpaceX acquires xAI for $250B as OpenAI tops $25B annualized revenue and eyes an IPO in a consolidating AI industry.", color: "#C0604A", url: "https://www.crescendo.ai/news/latest-ai-news-and-updates" },
 ];
 
 const SOCIAL_CARDS = [
-  { id: "social_0", channel: "社交雷達", tag: "體育", zh: "歐冠八強首回合今晚登場！葡萄牙體育對陣阿森納、皇家馬德里迎戰拜仁慕尼黑，兩場焦點大戰火花四射，球迷必看。", en: "Champions League quarterfinals kick off tonight with Sporting CP vs Arsenal and Real Madrid vs Bayern Munich.", color: "#C97DD4", url: "https://www.uefa.com/uefachampionsleague/news/02a3-203ad8fab958-3960d189eed9-1000--champions-league-quarter-finals-key-stats-and-what-to-look-/" },
-  { id: "social_1", channel: "社交雷達", tag: "體育", zh: "蒙地卡羅大師賽正在摩納哥火熱進行中（4/4-12），紅土賽季全面啟動，各路好手爭奪法網前哨戰的重要積分。", en: "The Monte-Carlo Masters is underway in Monaco as the clay court season heats up ahead of Roland Garros.", color: "#C97DD4", url: "https://www.skysports.com/tennis/watch/8969568143180146112/rolex-monte-carlo-masters-2026" },
-  { id: "social_2", channel: "社交雷達", tag: "Wellness", zh: "今天是世界衛生日！2026 年主題「攜手健康，擁抱科學」，WHO 強調預防醫學的力量——全球高達 80% 的心臟病與糖尿病其實可以靠生活習慣改變來預防。", en: "World Health Day 2026 spotlights preventive care \u2014 WHO says 80% of heart disease and diabetes cases are preventable.", color: "#C97DD4", url: "https://www.who.int/news-room/events/detail/2026/04/07/default-calendar/world-health-day-2026-together-for-health-stand-with-science" },
-  { id: "social_3", channel: "社交雷達", tag: "Wellness", zh: "2026 年「長壽宅」概念興起，將預防醫學、AI 健康追蹤與先進診斷直接融入住宅設計，讓你在家就能做到主動式健康管理，超前部署你的身體。", en: "Longevity residences are the hottest wellness real estate trend, embedding AI health tracking and diagnostics into homes.", color: "#C97DD4", url: "https://www.globalwellnesssummit.com/2026trends/" },
-  { id: "social_4", channel: "社交雷達", tag: "餐飲", zh: "米其林指南首度推出「建築與設計獎」，不只看料理也看空間美學！同時里約與聖保羅的 2026 米其林榜單將於 4/13 在科帕卡巴納皇宮揭曉，南美美食圈超期待。", en: "Michelin launches its first-ever Architecture & Design awards, and the Rio & Sao Paulo 2026 guide drops April 13.", color: "#C97DD4", url: "https://guide.michelin.com/us/en/article/features/david-rockwell-michelin-guide-restaurant-design-casa-dani-carlotto-peak-oceans-wayan" },
+  { id: "social_0", channel: "社交雷達", tag: "體育", zh: "歐冠八強首回合今晚登場！葡萄牙體育對陣阿森納、皇家馬德里迎戰拜仁慕尼黑，兩場焦點大戰火花四射，球迷必看。", en: "Champions League quarterfinals kick off tonight with Sporting CP vs Arsenal and Real Madrid vs Bayern Munich.", color: "#8B6BAE", url: "https://www.uefa.com/uefachampionsleague/" },
+  { id: "social_1", channel: "社交雷達", tag: "體育", zh: "蒙地卡羅大師賽正在摩納哥火熱進行中（4/4–12），紅土賽季全面啟動，各路好手爭奪法網前哨戰的重要積分。", en: "The Monte-Carlo Masters is underway in Monaco as the clay court season heats up ahead of Roland Garros.", color: "#8B6BAE", url: "https://www.skysports.com/tennis" },
+  { id: "social_2", channel: "社交雷達", tag: "Wellness", zh: "今天是世界衛生日！2026 年主題「攜手健康，擁抱科學」，WHO 強調全球高達 80% 的心臟病與糖尿病其實可以靠生活習慣改變來預防。", en: "World Health Day 2026: WHO says 80% of heart disease and diabetes cases are preventable through lifestyle changes.", color: "#8B6BAE", url: "https://www.who.int/news-room/events/detail/2026/04/07" },
+  { id: "social_3", channel: "社交雷達", tag: "Wellness", zh: "2026 年「長壽宅」概念興起，將預防醫學、AI 健康追蹤與先進診斷直接融入住宅設計，讓你在家就能做到主動式健康管理。", en: "Longevity residences are the hottest wellness real estate trend, embedding AI health tracking and diagnostics into homes.", color: "#8B6BAE", url: "https://www.globalwellnesssummit.com/2026trends/" },
+  { id: "social_4", channel: "社交雷達", tag: "餐飲", zh: "米其林指南首度推出「建築與設計獎」，不只看料理也看空間美學！里約與聖保羅的 2026 米其林榜單將於 4/13 在科帕卡巴納皇宮揭曉。", en: "Michelin launches its first-ever Architecture & Design awards, and the Rio & Sao Paulo 2026 guide drops April 13.", color: "#8B6BAE", url: "https://guide.michelin.com/us/en/article/features/david-rockwell-michelin-guide-restaurant-design" },
 ];
 
-const BOOK_CHANNELS = ["Naval", "Elon", "Dan Koe"];
 const BOOK_CARDS = [...NAVAL_CARDS, ...ELON_CARDS, ...DAN_CARDS];
 const TODAY_CARDS = [...NEWS_CARDS, ...SOCIAL_CARDS];
-const ALL_CARDS = [...BOOK_CARDS, ...TODAY_CARDS];
-
-const TABS = ["Bookshelf", "Today"];
+const TABS = ["Today", "Bookshelf"];
 const TODAY_SUBS = ["全部", "世界新聞", "社交雷達"];
 
-// Fisher-Yates shuffle
 function shuffle(arr) {
   const a = [...arr];
   for (let i = a.length - 1; i > 0; i--) {
@@ -130,89 +263,89 @@ function shuffle(arr) {
   return a;
 }
 
-// ─── Components ──────────────────────────────────────────
-function TabNav({ active, onChange }) {
-  return (
-    <div className="tab-nav">
-      {TABS.map(tab => {
-        const isActive = active === tab;
-        return (
-          <button
-            key={tab}
-            onClick={() => onChange(tab)}
-            style={{
-              fontSize: isActive ? "28px" : "16px",
-              fontWeight: isActive ? 600 : 400,
-              color: "var(--text)",
-              opacity: isActive ? 1 : 0.3,
-              lineHeight: 1.2,
-            }}
-          >
-            {tab}
-          </button>
-        );
-      })}
-    </div>
-  );
+// ─── Date string ───────────────────────────────────────────
+function getDateString() {
+  const now = new Date();
+  return now.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }).toUpperCase();
 }
 
-function FeedItem({ card, index, showImage }) {
+// ─── Feed Item ─────────────────────────────────────────────
+function FeedItem({ card, index }) {
   const [expanded, setExpanded] = useState(false);
+
   return (
     <div
+      className="feed-item"
       onClick={() => setExpanded(!expanded)}
-      style={{
-        padding: "0 0 28px 0",
-        marginBottom: "28px",
-        borderBottom: "1px solid var(--divider)",
-        cursor: "pointer",
-        animation: "fadeUp 0.35s ease both",
-        animationDelay: `${Math.min(index * 0.04, 0.5)}s`,
-      }}
+      style={{ animationDelay: `${Math.min(index * 0.06, 0.6)}s` }}
     >
-      {/* TAG */}
-      <span style={{
-        fontFamily: "monospace",
-        fontSize: "10px",
-        textTransform: "uppercase",
-        letterSpacing: "0.15em",
-        color: "var(--text-secondary)",
-        display: "block",
-        marginBottom: "10px",
+      {/* Channel / Tag eyebrow */}
+      <div style={{
+        display: "flex",
+        alignItems: "center",
+        gap: "10px",
+        marginBottom: "18px",
       }}>
-        {card.channel} / {card.tag}
-      </span>
+        <span style={{
+          display: "inline-block",
+          width: "20px",
+          height: "1px",
+          background: card.color,
+          flexShrink: 0,
+        }} />
+        <span style={{
+          fontFamily: "'Courier New', monospace",
+          fontSize: "9px",
+          letterSpacing: "0.18em",
+          textTransform: "uppercase",
+          color: card.color,
+          opacity: 0.85,
+        }}>
+          {card.channel}
+        </span>
+        <span style={{
+          fontFamily: "'Courier New', monospace",
+          fontSize: "9px",
+          letterSpacing: "0.18em",
+          textTransform: "uppercase",
+          color: "var(--text-tertiary)",
+        }}>
+          {card.tag}
+        </span>
+      </div>
 
-      {/* English main text */}
+      {/* Main text — English */}
       <p style={{
         fontFamily: "Georgia, 'Times New Roman', serif",
-        fontSize: "17px",
-        lineHeight: 1.75,
+        fontSize: "19px",
+        lineHeight: 1.72,
         color: "var(--text)",
         margin: 0,
-        maxWidth: "56ch",
+        maxWidth: "54ch",
+        letterSpacing: "-0.01em",
       }}>
         {card.en}
       </p>
 
-      {/* Expandable: image (books only) + Chinese */}
+      {/* Expandable Chinese */}
       <div style={{
         overflow: "hidden",
-        maxHeight: expanded ? "500px" : "0px",
-        transition: "max-height 0.4s ease",
+        maxHeight: expanded ? "300px" : "0px",
+        transition: "max-height 0.45s cubic-bezier(0.4, 0, 0.2, 1)",
       }}>
         <div style={{
+          marginTop: "22px",
+          paddingTop: "20px",
           borderTop: "1px solid var(--divider)",
-          marginTop: "14px",
-          paddingTop: "14px",
         }}>
           <p style={{
-            fontFamily: "system-ui, -apple-system, sans-serif",
+            fontFamily: "system-ui, -apple-system, 'PingFang TC', sans-serif",
             fontSize: "14px",
-            lineHeight: 1.8,
+            lineHeight: 1.9,
             color: "var(--text-secondary)",
             margin: 0,
-            maxWidth: "56ch",
+            maxWidth: "48ch",
+            fontWeight: 300,
           }}>
             {card.zh}
           </p>
@@ -220,13 +353,15 @@ function FeedItem({ card, index, showImage }) {
       </div>
 
       {/* Bottom row */}
-      <div style={{ display: "flex", alignItems: "center", gap: "16px", marginTop: "10px" }}>
+      <div className="expand-row">
         <span style={{
-          fontFamily: "monospace",
-          fontSize: "10px",
-          color: "var(--text-secondary)",
+          fontFamily: "'Courier New', monospace",
+          fontSize: "9px",
+          letterSpacing: "0.14em",
+          textTransform: "uppercase",
+          color: "var(--text-tertiary)",
         }}>
-          {expanded ? "收起 ↑" : "中文 ↓"}
+          {expanded ? "close ↑" : "中文 ↓"}
         </span>
         {card.url && (
           <a
@@ -234,17 +369,7 @@ function FeedItem({ card, index, showImage }) {
             target="_blank"
             rel="noopener noreferrer"
             onClick={e => e.stopPropagation()}
-            style={{
-              fontFamily: "monospace",
-              fontSize: "10px",
-              color: "var(--text-secondary)",
-              textDecoration: "none",
-              borderBottom: "1px solid var(--divider)",
-              paddingBottom: "1px",
-              transition: "color 0.2s",
-            }}
-            onMouseEnter={e => e.currentTarget.style.color = "var(--text)"}
-            onMouseLeave={e => e.currentTarget.style.color = "var(--text-secondary)"}
+            className="source-link"
           >
             source ↗
           </a>
@@ -254,7 +379,7 @@ function FeedItem({ card, index, showImage }) {
   );
 }
 
-// ─── Theme Toggle ────────────────────────────────────────
+// ─── Theme Toggle ──────────────────────────────────────────
 function ThemeToggle() {
   const [dark, setDark] = useState(false);
   const toggle = () => {
@@ -263,115 +388,132 @@ function ThemeToggle() {
     document.body.setAttribute("data-theme", next ? "dark" : "light");
   };
   return (
-    <button onClick={toggle} style={{
-      position: "fixed",
-      top: "20px",
-      right: "20px",
-      zIndex: 100,
-      background: "none",
-      border: "none",
-      cursor: "pointer",
-      fontSize: "18px",
-      color: "var(--text-secondary)",
-      padding: "4px",
-      lineHeight: 1,
-      transition: "color 0.3s ease",
-    }}>
-      {dark ? "☽" : "☀︎"}
+    <button className="theme-toggle" onClick={toggle}>
+      {dark ? "○" : "●"}
     </button>
   );
 }
 
-// ─── Main App ─────────────────────────────────────────────
+// ─── Main App ──────────────────────────────────────────────
 function App() {
   const [activeTab, setActiveTab] = useState("Today");
   const [todaySub, setTodaySub] = useState("全部");
   const [bookSeed, setBookSeed] = useState(0);
 
-  // For 書櫃: randomly pick 6 cards, re-shuffle on Refresh
-  const shuffledBooks = React.useMemo(() => shuffle(BOOK_CARDS).slice(0, 6), [bookSeed]);
+  const shuffledBooks = useMemo(() => shuffle(BOOK_CARDS).slice(0, 6), [bookSeed]);
 
-  const getCards = () => {
+  const cards = useMemo(() => {
     if (activeTab === "Bookshelf") return shuffledBooks;
-    if (activeTab === "Today") {
-      if (todaySub === "世界新聞") return NEWS_CARDS;
-      if (todaySub === "社交雷達") return SOCIAL_CARDS;
-      return TODAY_CARDS;
-    }
+    if (todaySub === "世界新聞") return NEWS_CARDS;
+    if (todaySub === "社交雷達") return SOCIAL_CARDS;
     return TODAY_CARDS;
-  };
+  }, [activeTab, todaySub, shuffledBooks]);
 
-  const cards = getCards();
+  const dateStr = getDateString();
 
   return (
-    <div style={{ maxWidth: "640px", margin: "0 auto", minHeight: "100vh", background: "var(--bg)" }}>
+    <div style={{ maxWidth: "680px", margin: "0 auto", minHeight: "100vh" }}>
       <ThemeToggle />
 
-      {/* Header */}
+      {/* Sticky header */}
       <div style={{
-        position: "sticky", top: 0, zIndex: 10,
+        position: "sticky",
+        top: 0,
+        zIndex: 10,
         background: "var(--bg)",
-        paddingTop: "24px", paddingBottom: "20px",
+        paddingTop: "36px",
+        paddingBottom: "0",
       }}>
-        <div style={{ padding: "0 24px", marginBottom: "20px", display: "flex", alignItems: "baseline", gap: "12px" }}>
-          <h1 style={{
-            fontFamily: "Georgia, serif",
-            fontSize: "14px",
-            fontWeight: 400,
-            color: "var(--text-secondary)",
-            letterSpacing: "0.12em",
-            textTransform: "uppercase",
+        {/* Masthead */}
+        <div style={{ padding: "0 32px", marginBottom: "28px" }}>
+          <div style={{
+            display: "flex",
+            alignItems: "flex-end",
+            justifyContent: "space-between",
+            marginBottom: "6px",
           }}>
-            Mo's Feed
-          </h1>
-          <span style={{
-            fontFamily: "monospace",
-            fontSize: "10px",
-            color: "var(--text-secondary)",
-            opacity: 0.5,
-            letterSpacing: "0.08em",
-          }}>
-            {cards.length} entries
-          </span>
+            <h1 className="masthead-title" style={{ fontSize: "42px" }}>
+              Mo's Feed
+            </h1>
+            <span className="running-header" style={{ paddingBottom: "8px" }}>
+              {dateStr}
+            </span>
+          </div>
+          <div className="rule" />
         </div>
-        <TabNav active={activeTab} onChange={tab => { setActiveTab(tab); if (tab !== "Today") setTodaySub("全部"); }} />
 
-        {/* Sub-tabs for Today */}
+        {/* Tab nav */}
+        <div className="tab-nav" style={{ marginBottom: "0" }}>
+          {TABS.map(tab => {
+            const isActive = activeTab === tab;
+            return (
+              <button
+                key={tab}
+                onClick={() => { setActiveTab(tab); if (tab !== "Today") setTodaySub("全部"); }}
+                style={{
+                  fontSize: isActive ? "26px" : "15px",
+                  fontWeight: isActive ? 600 : 400,
+                  fontStyle: isActive ? "normal" : "italic",
+                  color: isActive ? "var(--text)" : "var(--text-tertiary)",
+                  letterSpacing: isActive ? "-0.01em" : "0",
+                }}
+              >
+                {tab}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Sub-filters */}
         {activeTab === "Today" && (
-          <div style={{ display: "flex", gap: "16px", padding: "14px 24px 0" }}>
+          <div style={{
+            display: "flex",
+            gap: "20px",
+            padding: "14px 32px 0",
+          }}>
             {TODAY_SUBS.map(sub => (
-              <button key={sub} onClick={() => setTodaySub(sub)} style={{
-                background: "none", border: "none", cursor: "pointer",
-                fontFamily: "monospace", fontSize: "11px", letterSpacing: "0.06em",
-                color: "var(--text-secondary)",
-                opacity: todaySub === sub ? 1 : 0.4,
-                padding: 0,
-                borderBottom: todaySub === sub ? "1px solid var(--text-secondary)" : "1px solid transparent",
-                paddingBottom: "2px",
-                transition: "all 0.2s ease",
-              }}>
+              <button
+                key={sub}
+                className="sub-pill"
+                onClick={() => setTodaySub(sub)}
+                style={{
+                  color: todaySub === sub ? "var(--text-secondary)" : "var(--text-tertiary)",
+                  borderBottomColor: todaySub === sub ? "var(--text-secondary)" : "transparent",
+                  opacity: todaySub === sub ? 1 : 0.6,
+                }}
+              >
                 {sub}
               </button>
             ))}
           </div>
         )}
 
-        <div style={{ height: "1px", background: "var(--divider)", margin: "20px 24px 0" }} />
+        {/* Bottom rule */}
+        <div style={{ padding: "0 32px", marginTop: "20px" }}>
+          <div className="rule" />
+        </div>
       </div>
 
-      {/* Content */}
-      <div style={{ padding: "28px 24px 80px" }}>
+      {/* Feed */}
+      <div style={{ padding: "52px 32px 80px" }}>
         {cards.length === 0 && (
-          <p style={{ fontFamily: "monospace", fontSize: "12px", color: "var(--text-secondary)" }}>
-            No entries yet.
+          <p style={{
+            fontFamily: "'Courier New', monospace",
+            fontSize: "11px",
+            color: "var(--text-tertiary)",
+            letterSpacing: "0.1em",
+          }}>
+            No entries.
           </p>
         )}
-        {cards.map((card, i) => <FeedItem key={card.id + "-" + bookSeed} card={card} index={i} />)}
 
-        {/* Refresh button for Bookshelf */}
+        {cards.map((card, i) => (
+          <FeedItem key={card.id + "-" + bookSeed} card={card} index={i} />
+        ))}
+
         {activeTab === "Bookshelf" && (
           <button className="refresh-btn" onClick={() => setBookSeed(s => s + 1)}>
-            ↻ REFRESH
+            ↻ Shuffle
           </button>
         )}
       </div>
