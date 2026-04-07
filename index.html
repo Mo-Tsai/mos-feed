@@ -104,26 +104,28 @@ const DAN_CARDS = [
 ];
 
 const NEWS_CARDS = [
-  { id: "news_0", channel: "世界新聞", tag: "財經", zh: "川普於4月2日宣布新一輪全球關稅，S&P 500在4月3日暴跌近5%，創下2020年疫情以來最大單日跌幅，隔日又再度下挫6%，那斯達克進入修正區間。聯準會亞特蘭大分部的GDP追蹤指標首次轉負，市場衰退警報全面亮起。", en: "Trump's sweeping tariffs trigger S&P 500's worst two-day crash since COVID, with Nasdaq entering correction territory and recession fears mounting.", color: "#E05C5C" },
-  { id: "news_1", channel: "世界新聞", tag: "地緣政治", zh: "美伊衝突持續升溫，一架美國空軍戰機在伊朗被擊落，飛行員在敵境逃避追捕逾一天後成功獲救。伊朗同時持續對波斯灣商船發動攻擊，威脅荷姆茲海峽航道安全，全球能源與物流供應鏈面臨嚴峻壓力。", en: "A US Air Force pilot was rescued from Iran after being shot down, as Iranian attacks on Gulf shipping threaten to choke the Strait of Hormuz.", color: "#E05C5C" },
-  { id: "news_2", channel: "世界新聞", tag: "AI", zh: "OpenAI發布GPT-5.4，具備百萬token上下文視窗，並能在電腦桌面環境中自主執行多步驟工作流程，在OSWorld-V基準測試中以75%得分超越人類72.4%的基準線。這標誌著AI從對話工具正式邁向「數位自主工作者」的新時代，OpenAI年化營收也突破250億美元。", en: "OpenAI's GPT-5.4 scores 75% on OSWorld-V\u2014above the human baseline of 72.4%\u2014marking AI's transition from chatbot to autonomous digital coworker.", color: "#E05C5C" },
-  { id: "news_3", channel: "世界新聞", tag: "AI", zh: "Anthropic的模型情境協定（MCP）在2026年3月突破9700萬次安裝，所有主要AI廠商均已推出相容工具，MCP已成為AI代理連接外部工具、API與資料的預設產業標準。AI生態系正在快速標準化，這對企業部署AI代理具有深遠意義。", en: "Anthropic's Model Context Protocol surpasses 97 million installs in March 2026, becoming the industry-standard interface for AI agents connecting to external tools and APIs.", color: "#E05C5C" },
-  { id: "news_4", channel: "世界新聞", tag: "財經", zh: "歐洲央行上調2026年通膨預測，主因是中東戰事推高能源價格，油輪航運受阻更加劇通膨壓力。新興市場股債市場自中東衝突爆發後明顯轉弱，美元同步走強，全球貨幣政策面臨兩難困境。", en: "The ECB revises inflation forecasts upward for 2026 as Middle East conflict drives energy prices higher and disrupts global shipping routes.", color: "#E05C5C" },
+  { id: "news_0", channel: "世界新聞", tag: "地緣政治", zh: "美國與伊朗緊張局勢持續升級，川普設下最後期限要求伊朗重新開放荷莫茲海峽，並警告若未達成協議可能對伊朗採取全面行動。各方正就可能的 45 天停火條件進行談判，中東局勢牽動全球油價與市場走勢。", en: "Trump sets ultimatum for Iran to reopen the Strait of Hormuz as ceasefire talks intensify amid escalating U.S.-Iran conflict.", color: "#E05C5C", url: "https://www.cnn.com/2026/04/06/world/live-news/iran-war-us-trump-oil" },
+  { id: "news_1", channel: "世界新聞", tag: "地緣政治", zh: "以色列入侵黎巴嫩，聲稱追擊伊朗支持的真主黨武裝分子。黎巴嫩表示已有超過 1,400 人在以色列入侵行動中喪生，其中包含至少 54 名醫護人員。", en: "Israel invades Lebanon in pursuit of Hezbollah fighters as the wider Iran regional war expands.", color: "#E05C5C", url: "https://edition.cnn.com/2026/04/06/world/live-news/iran-war-us-trump-oil" },
+  { id: "news_2", channel: "世界新聞", tag: "財經", zh: "美股在停火希望與升級風險間拉鋸，S&P 500 上漲 0.44% 收 6,611 點，那斯達克漲 0.54%。投資人關注本週即將公布的 CPI 與 PCE 數據，特斯拉因摩根大通看空預警持續走跌。", en: "U.S. stocks edge higher on ceasefire hopes with S&P 500 at 6,611; markets await CPI and PCE data this week.", color: "#E05C5C", url: "https://finance.yahoo.com/news/live/stock-market-today-oil-surges-futures-fall-as-trump-ratchets-up-threats-against-iran-002656735.html" },
+  { id: "news_3", channel: "世界新聞", tag: "AI", zh: "研究人員發表突破性方法，透過結合神經網路與人類式符號推理，可將 AI 能耗降低最高 100 倍，同時還能提升準確率。這項技術有望大幅解決 AI 產業的高耗能問題。", en: "Researchers unveil a hybrid neural-symbolic approach that slashes AI energy consumption by up to 100x while boosting accuracy.", color: "#E05C5C", url: "https://www.sciencedaily.com/releases/2026/04/260405003952.htm" },
+  { id: "news_4", channel: "世界新聞", tag: "AI", zh: "SpaceX 以 2,500 億美元收購 xAI，為 AI 產業史上最大併購案之一。同時 OpenAI 年化營收突破 250 億美元並籌備上市，Anthropic 年化營收也逼近 190 億美元，AI 產業進入整合期。", en: "SpaceX acquires xAI for $250B as OpenAI tops $25B annualized revenue and eyes an IPO in a consolidating AI industry.", color: "#E05C5C", url: "https://www.crescendo.ai/news/latest-ai-news-and-updates" },
 ];
 
 const SOCIAL_CARDS = [
-  { id: "social_0", channel: "社交雷達", tag: "體育", zh: "歐冠八強今日迎來兩場焦點對決：皇家馬德里對決拜仁慕尼黑、阿森納迎戰體育里斯本，巨星雲集、火花四射。距離2026世界盃開踢僅剩數月，足球熱度已提前引爆全球球迷情緒。", en: "Champions League quarter-finals heat up on April 7 with Real Madrid vs Bayern Munich and Arsenal vs Sporting CP, as football fever builds toward the 2026 World Cup.", color: "#C97DD4" },
-  { id: "social_1", channel: "社交雷達", tag: "Wellness", zh: "今天是世界衛生日（4月7日），今年主題聚焦「預防重於治療」。2026年最夯的健康趨勢包括：結合AI個人化追蹤的長壽社區住宅、把防災計畫納入日常的「韌性健康」觀念，以及快速普及的訂閱式精英醫療服務。", en: "World Health Day 2026 spotlights preventive medicine, with AI-powered longevity communities and disaster-readiness plans emerging as the year's biggest wellness trends.", color: "#C97DD4" },
-  { id: "social_2", channel: "社交雷達", tag: "體育", zh: "年度紅土賽季開幕盛事——ATP 1000蒙地卡羅大師賽（4月5日至12日）正如火如荼進行中，頂尖選手在地中海美景下激烈廝殺。蒙地卡羅的賽場不只是網球聖地，更是時尚與風格的代名詞。", en: "The ATP Monte-Carlo Masters 1000 is underway (April 5\u201312), kicking off the clay-court season with stunning Mediterranean views and top-ranked players in action.", color: "#C97DD4" },
-  { id: "social_3", channel: "社交雷達", tag: "設計", zh: "2026年餐廳設計走向「感官平衡」美學，木材、亞麻、赤陶等天然材質搭配隔音天花板與暖色可調光源，打造真實溫暖的用餐體驗。戶外空間也從臨時搭建升級為具備全天候設施的永久延伸，成為品牌形象的一部分。", en: "Restaurant design in 2026 embraces natural textures, acoustic panels, and all-weather permanent patios\u2014trading flashy aesthetics for warmth and sensory comfort.", color: "#C97DD4" },
-  { id: "social_4", channel: "社交雷達", tag: "餐飲", zh: "法國米其林名廚Cyril Lignac即將在紐約公園大道開設首間NYC餐廳「Bar des Pr\u00e9s」，引發美食界高度期待。與此同時，2026年米其林指南里約熱內盧暨聖保羅版本將於4月13日在傳奇科帕卡瓦納皇宮飯店正式揭曉，南美美食地圖即將改寫。", en: "Michelin-starred chef Cyril Lignac is bringing 'Bar des Pr\u00e9s' to NYC's Park Avenue, while the Michelin Guide for Rio de Janeiro and S\u00e3o Paulo 2026 debuts on April 13.", color: "#C97DD4" },
+  { id: "social_0", channel: "社交雷達", tag: "體育", zh: "歐冠八強首回合今晚登場！葡萄牙體育對陣阿森納、皇家馬德里迎戰拜仁慕尼黑，兩場焦點大戰火花四射，球迷必看。", en: "Champions League quarterfinals kick off tonight with Sporting CP vs Arsenal and Real Madrid vs Bayern Munich.", color: "#C97DD4", url: "https://www.uefa.com/uefachampionsleague/news/02a3-203ad8fab958-3960d189eed9-1000--champions-league-quarter-finals-key-stats-and-what-to-look-/" },
+  { id: "social_1", channel: "社交雷達", tag: "體育", zh: "蒙地卡羅大師賽正在摩納哥火熱進行中（4/4-12），紅土賽季全面啟動，各路好手爭奪法網前哨戰的重要積分。", en: "The Monte-Carlo Masters is underway in Monaco as the clay court season heats up ahead of Roland Garros.", color: "#C97DD4", url: "https://www.skysports.com/tennis/watch/8969568143180146112/rolex-monte-carlo-masters-2026" },
+  { id: "social_2", channel: "社交雷達", tag: "Wellness", zh: "今天是世界衛生日！2026 年主題「攜手健康，擁抱科學」，WHO 強調預防醫學的力量——全球高達 80% 的心臟病與糖尿病其實可以靠生活習慣改變來預防。", en: "World Health Day 2026 spotlights preventive care \u2014 WHO says 80% of heart disease and diabetes cases are preventable.", color: "#C97DD4", url: "https://www.who.int/news-room/events/detail/2026/04/07/default-calendar/world-health-day-2026-together-for-health-stand-with-science" },
+  { id: "social_3", channel: "社交雷達", tag: "Wellness", zh: "2026 年「長壽宅」概念興起，將預防醫學、AI 健康追蹤與先進診斷直接融入住宅設計，讓你在家就能做到主動式健康管理，超前部署你的身體。", en: "Longevity residences are the hottest wellness real estate trend, embedding AI health tracking and diagnostics into homes.", color: "#C97DD4", url: "https://www.globalwellnesssummit.com/2026trends/" },
+  { id: "social_4", channel: "社交雷達", tag: "餐飲", zh: "米其林指南首度推出「建築與設計獎」，不只看料理也看空間美學！同時里約與聖保羅的 2026 米其林榜單將於 4/13 在科帕卡巴納皇宮揭曉，南美美食圈超期待。", en: "Michelin launches its first-ever Architecture & Design awards, and the Rio & Sao Paulo 2026 guide drops April 13.", color: "#C97DD4", url: "https://guide.michelin.com/us/en/article/features/david-rockwell-michelin-guide-restaurant-design-casa-dani-carlotto-peak-oceans-wayan" },
 ];
 
+const BOOK_CHANNELS = ["Naval", "Elon", "Dan Koe"];
 const BOOK_CARDS = [...NAVAL_CARDS, ...ELON_CARDS, ...DAN_CARDS];
 const TODAY_CARDS = [...NEWS_CARDS, ...SOCIAL_CARDS];
 const ALL_CARDS = [...BOOK_CARDS, ...TODAY_CARDS];
 
 const TABS = ["全部", "書櫃", "今日"];
+const TODAY_SUBS = ["全部", "世界新聞", "社交雷達"];
 
 // Unsplash keyword mapping for tags
 const TAG_KEYWORDS = {
@@ -181,9 +183,10 @@ function TabNav({ active, onChange }) {
   );
 }
 
-function FeedItem({ card, index }) {
+function FeedItem({ card, index, showImage }) {
   const [expanded, setExpanded] = useState(false);
-  const imgUrl = getUnsplashUrl(card.tag, card.id);
+  const isBook = BOOK_CHANNELS.includes(card.channel);
+  const imgUrl = isBook ? getUnsplashUrl(card.tag, card.id) : null;
   return (
     <div
       onClick={() => setExpanded(!expanded)}
@@ -221,7 +224,7 @@ function FeedItem({ card, index }) {
         {card.en}
       </p>
 
-      {/* Expandable: image + Chinese */}
+      {/* Expandable: image (books only) + Chinese */}
       <div style={{
         overflow: "hidden",
         maxHeight: expanded ? "500px" : "0px",
@@ -232,14 +235,16 @@ function FeedItem({ card, index }) {
           marginTop: "14px",
           paddingTop: "14px",
         }}>
-          {/* Unsplash image */}
-          <img
-            src={expanded ? imgUrl : ""}
-            alt=""
-            className="feed-img"
-            loading="lazy"
-            style={{ display: expanded ? "block" : "none" }}
-          />
+          {/* Unsplash image — only for book cards */}
+          {imgUrl && (
+            <img
+              src={expanded ? imgUrl : ""}
+              alt=""
+              className="feed-img"
+              loading="lazy"
+              style={{ display: expanded ? "block" : "none" }}
+            />
+          )}
           <p style={{
             fontFamily: "system-ui, -apple-system, sans-serif",
             fontSize: "14px",
@@ -319,6 +324,7 @@ function ThemeToggle() {
 // ─── Main App ─────────────────────────────────────────────
 function App() {
   const [activeTab, setActiveTab] = useState("全部");
+  const [todaySub, setTodaySub] = useState("全部");
   const [bookSeed, setBookSeed] = useState(0);
 
   // For 書櫃: randomly pick 6 cards, re-shuffle on Refresh
@@ -326,7 +332,11 @@ function App() {
 
   const getCards = () => {
     if (activeTab === "書櫃") return shuffledBooks;
-    if (activeTab === "今日") return TODAY_CARDS;
+    if (activeTab === "今日") {
+      if (todaySub === "世界新聞") return NEWS_CARDS;
+      if (todaySub === "社交雷達") return SOCIAL_CARDS;
+      return TODAY_CARDS;
+    }
     return ALL_CARDS;
   };
 
@@ -363,7 +373,28 @@ function App() {
             {cards.length} entries
           </span>
         </div>
-        <TabNav active={activeTab} onChange={setActiveTab} />
+        <TabNav active={activeTab} onChange={tab => { setActiveTab(tab); if (tab !== "今日") setTodaySub("全部"); }} />
+
+        {/* Sub-tabs for 今日 */}
+        {activeTab === "今日" && (
+          <div style={{ display: "flex", gap: "16px", padding: "14px 24px 0" }}>
+            {TODAY_SUBS.map(sub => (
+              <button key={sub} onClick={() => setTodaySub(sub)} style={{
+                background: "none", border: "none", cursor: "pointer",
+                fontFamily: "monospace", fontSize: "11px", letterSpacing: "0.06em",
+                color: "var(--text-secondary)",
+                opacity: todaySub === sub ? 1 : 0.4,
+                padding: 0,
+                borderBottom: todaySub === sub ? "1px solid var(--text-secondary)" : "1px solid transparent",
+                paddingBottom: "2px",
+                transition: "all 0.2s ease",
+              }}>
+                {sub}
+              </button>
+            ))}
+          </div>
+        )}
+
         <div style={{ height: "1px", background: "var(--divider)", margin: "20px 24px 0" }} />
       </div>
 
