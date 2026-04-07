@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Mo's Feed</title>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0F0D0B;
+    --text: #E8E5E0;
+    --text-secondary: #4A4845;
+    --divider: #252320;
+  }
+  [data-theme="light"] {
+    --bg: #F5F2EC;
+    --text: #1A1714;
+    --text-secondary: #8A8785;
+    --divider: #DDD9D3;
+  }
+  body {
+    background: var(--bg);
+    -webkit-font-smoothing: antialiased;
+    font-family: Georgia, 'Times New Roman', serif;
+    transition: background 0.3s ease, color 0.3s ease;
+  }
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  ::-webkit-scrollbar { width: 3px; }
+  ::-webkit-scrollbar-thumb { background: var(--divider); border-radius: 4px; }
+
+  /* Channel Nav */
+  .channel-nav {
+    display: flex; align-items: baseline; gap: 20px;
+    overflow-x: auto; scrollbar-width: none;
+    -ms-overflow-style: none;
+    padding: 0 24px;
+  }
+  .channel-nav::-webkit-scrollbar { display: none; }
+  .channel-nav button {
+    background: none; border: none; cursor: pointer;
+    white-space: nowrap; flex-shrink: 0;
+    font-family: Georgia, serif;
+    transition: all 0.3s ease;
+    padding: 0;
+  }
+</style>
+</head>
+<body data-theme="dark">
+<div id="root"></div>
+
+<script type="text/babel">
+const { useState, useEffect, useRef } = React;
+
+// ─── Data ───────────────────────────────────────────────
+const NAVAL_CARDS = [
+  { id: "n1", channel: "Naval", tag: "財富", zh: "財富是你睡覺時還在為你賺錢的資產。出賣時間無法致富——你需要的是擁有資產，而非租出生命。", en: "Wealth is assets that earn while you sleep. You won't get rich renting out your time.", color: "#7C6AF7" },
+  { id: "n2", channel: "Naval", tag: "槓桿", zh: "程式碼和媒體是新時代最重要的槓桿——不需要任何人的許可，就能讓你的努力以指數級擴張。", en: "Code and media are the new leverage. They don't require permission and replicate at near-zero marginal cost.", color: "#7C6AF7" },
+  { id: "n3", channel: "Naval", tag: "獨特知識", zh: "真正的獨特知識對你來說像在玩，但對別人來說看起來像在工作。如果社會能訓練你，它就能訓練別人來取代你。", en: "Specific knowledge feels like play to you but looks like work to others. If they can train you, they can replace you.", color: "#7C6AF7" },
+  { id: "n4", channel: "Naval", tag: "幸福", zh: "幸福是一種可以學習的技能。每個欲望都是在預支不幸福——它在說「我現在不夠好」。", en: "Happiness is a skill. Every desire is pre-paid misery — it says 'I'm not good enough right now.'", color: "#7C6AF7" },
+  { id: "n5", channel: "Naval", tag: "長期賽局", zh: "所有真正的回報——財富、關係、知識——都來自複利。跟玩長期遊戲的人合作，信任會自己累積。", en: "All returns in life come from compound interest. Play long-term games with long-term people.", color: "#7C6AF7" },
+  { id: "n6", channel: "Naval", tag: "清晰思考", zh: "放下僵固的身份認同，才能看清事實。你越執著於「我是這種人」，你就越看不清這個世界。", en: "Clear thinking requires courage. The more you hold onto identity, the harder it is to see reality.", color: "#7C6AF7" },
+];
+
+const ELON_CARDS = [
+  { id: "e1", channel: "Elon", tag: "第一原理", zh: "不要用類比思考，要從第一原理出發。類比讓你複製過去；第一原理讓你重新定義未來。", en: "Think from first principles rather than by analogy. Analogies copy the past; first principles redefine the future.", color: "#E8A838" },
+  { id: "e2", channel: "Elon", tag: "The Algorithm", zh: "五步工程流程：質疑需求 → 刪除冗餘 → 簡化流程 → 加速執行 → 自動化。順序不能亂，否則你只是在更有效率地做錯誤的事。", en: "Question → Delete → Simplify → Accelerate → Automate. Never automate something that shouldn't exist.", color: "#E8A838" },
+  { id: "e3", channel: "Elon", tag: "失敗哲學", zh: "如果你沒在失敗，代表你根本不夠創新。失敗是創新的必要成本——SpaceX 前幾次爆炸只是數據收集。", en: "If things are not failing, you are not innovating enough. Failure is data collection, not shame.", color: "#E8A838" },
+  { id: "e4", channel: "Elon", tag: "使命", zh: "當某件事足夠重要，即使勝算不在你這邊，你也會去做。這不是樂觀，這是對重要性的判斷。", en: "When something is important enough, you do it even if the odds are not in your favor.", color: "#E8A838" },
+  { id: "e5", channel: "Elon", tag: "產品設計", zh: "任何需要說明書才能使用的產品，就是設計失敗。好的產品應該直覺到不需要教學。", en: "Any product that requires a training manual to use is poorly designed.", color: "#E8A838" },
+  { id: "e6", channel: "Elon", tag: "人才策略", zh: "好的制度應該讓普通人也能做出不凡的事——系統比個人更重要。讓公司依賴超級明星是早期最大的錯誤。", en: "Good systems let ordinary people do extraordinary things. Stars create dependency; systems create scale.", color: "#E8A838" },
+];
+
+const DAN_CARDS = [
+  { id: "d1", channel: "Dan Koe", tag: "創造力", zh: "創意枯竭的根源是認知疲勞，由三件事造成：社會制約、生產力至上思維、注意力碎片化。停止多工，回歸深度。", en: "Creativity is buried by conditioning, productivity mindset, and fragmented attention. Return to depth.", color: "#4EABA4" },
+  { id: "d2", channel: "Dan Koe", tag: "一人公司", zh: "AI 降低了創作門檻，但提高了技術天花板。競爭者更多了，但真正努力的人反而更少——這是你的機會。", en: "AI lowers the floor but raises the ceiling. More competitors, fewer who actually try. That's your opportunity.", color: "#4EABA4" },
+  { id: "d3", channel: "Dan Koe", tag: "多元興趣", zh: "社會告訴你要專精一項技能，但多元興趣才是這個時代的超能力。關鍵是找一個「容器」把所有興趣整合成有意義的工作。", en: "Multiple interests aren't a weakness — they're a superpower. Find one container that makes them all profitable.", color: "#4EABA4" },
+  { id: "d4", channel: "Dan Koe", tag: "AI 時代", zh: "面對 AI 有三種人：抗拒者、觀望者、好奇者。歷史告訴我們：學會操作新機器的人勝出，等待的人被指數級拉開。", en: "Three responses to AI: resist, wait, or explore. History shows the curious always win.", color: "#4EABA4" },
+  { id: "d5", channel: "Dan Koe", tag: "意義", zh: "AI 時代「意義」將成為稀缺資源。人類的好奇心、掙扎與對地位的追求，是任何 AI 無法複製的價值來源。", en: "In the age of AI, meaning becomes the scarcest resource. Human curiosity and struggle are the last moats.", color: "#4EABA4" },
+];
+
+const CHANNEL_META = {
+  "Naval":   { color: "#7C6AF7", icon: "◈", label: "納瓦爾寶典" },
+  "Elon":    { color: "#E8A838", icon: "⬡", label: "The Book of Elon" },
+  "Dan Koe": { color: "#4EABA4", icon: "◉", label: "Dan Koe 知識庫" },
+  "世界新聞": { color: "#E05C5C", icon: "◎", label: "World News" },
+  "社交雷達": { color: "#C97DD4", icon: "◐", label: "體育 · Wellness · 設計" },
+};
+
+const NEWS_CARDS = [
+  { id: "news_0", channel: "世界新聞", tag: "財經", zh: "川普於4月2日宣布新一輪全球關稅，S&P 500在4月3日暴跌近5%，創下2020年疫情以來最大單日跌幅，隔日又再度下挫6%，那斯達克進入修正區間。聯準會亞特蘭大分部的GDP追蹤指標首次轉負，市場衰退警報全面亮起。", en: "Trump's sweeping tariffs trigger S&P 500's worst two-day crash since COVID, with Nasdaq entering correction territory and recession fears mounting.", color: "#E05C5C" },
+  { id: "news_1", channel: "世界新聞", tag: "地緣政治", zh: "美伊衝突持續升溫，一架美國空軍戰機在伊朗被擊落，飛行員在敵境逃避追捕逾一天後成功獲救。伊朗同時持續對波斯灣商船發動攻擊，威脅荷姆茲海峽航道安全，全球能源與物流供應鏈面臨嚴峻壓力。", en: "A US Air Force pilot was rescued from Iran after being shot down, as Iranian attacks on Gulf shipping threaten to choke the Strait of Hormuz.", color: "#E05C5C" },
+  { id: "news_2", channel: "世界新聞", tag: "AI", zh: "OpenAI發布GPT-5.4，具備百萬token上下文視窗，並能在電腦桌面環境中自主執行多步驟工作流程，在OSWorld-V基準測試中以75%得分超越人類72.4%的基準線。這標誌著AI從對話工具正式邁向「數位自主工作者」的新時代，OpenAI年化營收也突破250億美元。", en: "OpenAI's GPT-5.4 scores 75% on OSWorld-V\u2014above the human baseline of 72.4%\u2014marking AI's transition from chatbot to autonomous digital coworker.", color: "#E05C5C" },
+  { id: "news_3", channel: "世界新聞", tag: "AI", zh: "Anthropic的模型情境協定（MCP）在2026年3月突破9700萬次安裝，所有主要AI廠商均已推出相容工具，MCP已成為AI代理連接外部工具、API與資料的預設產業標準。AI生態系正在快速標準化，這對企業部署AI代理具有深遠意義。", en: "Anthropic's Model Context Protocol surpasses 97 million installs in March 2026, becoming the industry-standard interface for AI agents connecting to external tools and APIs.", color: "#E05C5C" },
+  { id: "news_4", channel: "世界新聞", tag: "財經", zh: "歐洲央行上調2026年通膨預測，主因是中東戰事推高能源價格，油輪航運受阻更加劇通膨壓力。新興市場股債市場自中東衝突爆發後明顯轉弱，美元同步走強，全球貨幣政策面臨兩難困境。", en: "The ECB revises inflation forecasts upward for 2026 as Middle East conflict drives energy prices higher and disrupts global shipping routes.", color: "#E05C5C" },
+];
+
+const SOCIAL_CARDS = [
+  { id: "social_0", channel: "社交雷達", tag: "體育", zh: "歐冠八強今日迎來兩場焦點對決：皇家馬德里對決拜仁慕尼黑、阿森納迎戰體育里斯本，巨星雲集、火花四射。距離2026世界盃開踢僅剩數月，足球熱度已提前引爆全球球迷情緒。", en: "Champions League quarter-finals heat up on April 7 with Real Madrid vs Bayern Munich and Arsenal vs Sporting CP, as football fever builds toward the 2026 World Cup.", color: "#C97DD4" },
+  { id: "social_1", channel: "社交雷達", tag: "Wellness", zh: "今天是世界衛生日（4月7日），今年主題聚焦「預防重於治療」。2026年最夯的健康趨勢包括：結合AI個人化追蹤的長壽社區住宅、把防災計畫納入日常的「韌性健康」觀念，以及快速普及的訂閱式精英醫療服務。", en: "World Health Day 2026 spotlights preventive medicine, with AI-powered longevity communities and disaster-readiness plans emerging as the year's biggest wellness trends.", color: "#C97DD4" },
+  { id: "social_2", channel: "社交雷達", tag: "體育", zh: "年度紅土賽季開幕盛事——ATP 1000蒙地卡羅大師賽（4月5日至12日）正如火如荼進行中，頂尖選手在地中海美景下激烈廝殺。蒙地卡羅的賽場不只是網球聖地，更是時尚與風格的代名詞。", en: "The ATP Monte-Carlo Masters 1000 is underway (April 5\u201312), kicking off the clay-court season with stunning Mediterranean views and top-ranked players in action.", color: "#C97DD4" },
+  { id: "social_3", channel: "社交雷達", tag: "設計", zh: "2026年餐廳設計走向「感官平衡」美學，木材、亞麻、赤陶等天然材質搭配隔音天花板與暖色可調光源，打造真實溫暖的用餐體驗。戶外空間也從臨時搭建升級為具備全天候設施的永久延伸，成為品牌形象的一部分。", en: "Restaurant design in 2026 embraces natural textures, acoustic panels, and all-weather permanent patios\u2014trading flashy aesthetics for warmth and sensory comfort.", color: "#C97DD4" },
+  { id: "social_4", channel: "社交雷達", tag: "餐飲", zh: "法國米其林名廚Cyril Lignac即將在紐約公園大道開設首間NYC餐廳「Bar des Pr\u00e9s」，引發美食界高度期待。與此同時，2026年米其林指南里約熱內盧暨聖保羅版本將於4月13日在傳奇科帕卡瓦納皇宮飯店正式揭曉，南美美食地圖即將改寫。", en: "Michelin-starred chef Cyril Lignac is bringing 'Bar des Pr\u00e9s' to NYC's Park Avenue, while the Michelin Guide for Rio de Janeiro and S\u00e3o Paulo 2026 debuts on April 13.", color: "#C97DD4" },
+];
+
+const CHANNELS = ["全部", "Naval", "Elon", "Dan Koe", "世界新聞", "社交雷達"];
+const STATIC_CARDS = [...NAVAL_CARDS, ...ELON_CARDS, ...DAN_CARDS, ...NEWS_CARDS, ...SOCIAL_CARDS];
+
+
+// ─── Components ──────────────────────────────────────────
+function ChannelNav({ active, onChange }) {
+  const navRef = useRef(null);
+  const itemRefs = useRef({});
+
+  useEffect(() => {
+    const el = itemRefs.current[active];
+    if (el && navRef.current) {
+      const nav = navRef.current;
+      const navRect = nav.getBoundingClientRect();
+      const elRect = el.getBoundingClientRect();
+      const scrollTo = el.offsetLeft - navRect.width / 2 + elRect.width / 2;
+      nav.scrollTo({ left: scrollTo, behavior: "smooth" });
+    }
+  }, [active]);
+
+  return (
+    <div className="channel-nav" ref={navRef}>
+      {CHANNELS.map(ch => {
+        const isActive = active === ch;
+        return (
+          <button
+            key={ch}
+            ref={el => itemRefs.current[ch] = el}
+            onClick={() => onChange(ch)}
+            style={{
+              fontSize: isActive ? "28px" : "16px",
+              fontWeight: isActive ? 600 : 400,
+              color: isActive ? "var(--text)" : "var(--text)",
+              opacity: isActive ? 1 : 0.3,
+              lineHeight: 1.2,
+            }}
+          >
+            {ch}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function FeedItem({ card, index }) {
+  const [expanded, setExpanded] = useState(false);
+  const meta = CHANNEL_META[card.channel];
+  return (
+    <div
+      onClick={() => setExpanded(!expanded)}
+      style={{
+        padding: "0 0 32px 0",
+        marginBottom: "32px",
+        borderBottom: "1px solid var(--divider)",
+        cursor: "pointer",
+        animation: "fadeUp 0.35s ease both",
+        animationDelay: `${Math.min(index * 0.04, 0.5)}s`,
+      }}
+    >
+      {/* TAG */}
+      <span style={{
+        fontFamily: "monospace",
+        fontSize: "10px",
+        textTransform: "uppercase",
+        letterSpacing: "0.15em",
+        color: meta.color,
+        display: "block",
+        marginBottom: "12px",
+      }}>
+        {card.channel} / {card.tag}
+      </span>
+
+      {/* English main text */}
+      <p style={{
+        fontFamily: "Georgia, 'Times New Roman', serif",
+        fontSize: "18px",
+        lineHeight: 1.75,
+        color: "var(--text)",
+        margin: 0,
+        maxWidth: "56ch",
+      }}>
+        {card.en}
+      </p>
+
+      {/* Chinese expandable */}
+      <div style={{
+        overflow: "hidden",
+        maxHeight: expanded ? "200px" : "0px",
+        transition: "max-height 0.3s ease",
+      }}>
+        <div style={{
+          borderTop: "1px solid var(--divider)",
+          marginTop: "16px",
+          paddingTop: "14px",
+        }}>
+          <p style={{
+            fontFamily: "system-ui, -apple-system, sans-serif",
+            fontSize: "14px",
+            lineHeight: 1.8,
+            color: "var(--text-secondary)",
+            margin: 0,
+            maxWidth: "56ch",
+          }}>
+            {card.zh}
+          </p>
+        </div>
+      </div>
+
+      {/* Bottom row: toggle hint + source link */}
+      <div style={{ display: "flex", alignItems: "center", gap: "16px", marginTop: "12px" }}>
+        <span style={{
+          fontFamily: "monospace",
+          fontSize: "10px",
+          color: "var(--text-secondary)",
+        }}>
+          {expanded ? "收起 \u2191" : "中文 \u2193"}
+        </span>
+        {card.url && (
+          <a
+            href={card.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={e => e.stopPropagation()}
+            style={{
+              fontFamily: "monospace",
+              fontSize: "10px",
+              color: "var(--text-secondary)",
+              textDecoration: "none",
+              borderBottom: "1px solid var(--divider)",
+              paddingBottom: "1px",
+              transition: "color 0.2s",
+            }}
+            onMouseEnter={e => e.currentTarget.style.color = "var(--text)"}
+            onMouseLeave={e => e.currentTarget.style.color = "var(--text-secondary)"}
+          >
+            source \u2197
+          </a>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Theme Toggle ────────────────────────────────────────
+function ThemeToggle() {
+  const [dark, setDark] = useState(true);
+  const toggle = () => {
+    const next = !dark;
+    setDark(next);
+    document.body.setAttribute("data-theme", next ? "dark" : "light");
+  };
+  return (
+    <button onClick={toggle} style={{
+      position: "fixed",
+      top: "20px",
+      right: "20px",
+      zIndex: 100,
+      background: "none",
+      border: "none",
+      cursor: "pointer",
+      fontSize: "18px",
+      color: "var(--text-secondary)",
+      padding: "4px",
+      lineHeight: 1,
+      transition: "color 0.3s ease",
+    }}>
+      {dark ? "\u263D" : "\u2600\uFE0E"}
+    </button>
+  );
+}
+
+// ─── Main App ─────────────────────────────────────────────
+function App() {
+  const [activeChannel, setActiveChannel] = useState("全部");
+  const filtered = activeChannel === "全部" ? STATIC_CARDS : STATIC_CARDS.filter(c => c.channel === activeChannel);
+
+  return (
+    <div style={{ maxWidth: "640px", margin: "0 auto", minHeight: "100vh", background: "var(--bg)" }}>
+      <ThemeToggle />
+
+      {/* Header */}
+      <div style={{
+        position: "sticky", top: 0, zIndex: 10,
+        background: "var(--bg)",
+        paddingTop: "24px", paddingBottom: "20px",
+      }}>
+        <div style={{ padding: "0 24px", marginBottom: "20px", display: "flex", alignItems: "baseline", gap: "12px" }}>
+          <h1 style={{
+            fontFamily: "Georgia, serif",
+            fontSize: "14px",
+            fontWeight: 400,
+            color: "var(--text-secondary)",
+            letterSpacing: "0.12em",
+            textTransform: "uppercase",
+          }}>
+            Mo's Feed
+          </h1>
+          <span style={{
+            fontFamily: "monospace",
+            fontSize: "10px",
+            color: "var(--text-secondary)",
+            opacity: 0.5,
+            letterSpacing: "0.08em",
+          }}>
+            {filtered.length} entries
+          </span>
+        </div>
+        <ChannelNav active={activeChannel} onChange={setActiveChannel} />
+        <div style={{ height: "1px", background: "var(--divider)", margin: "20px 24px 0" }} />
+      </div>
+
+      {/* Content */}
+      <div style={{ padding: "32px 24px 80px" }}>
+        {filtered.length === 0 && (
+          <p style={{ fontFamily: "monospace", fontSize: "12px", color: "var(--text-secondary)" }}>
+            No entries yet.
+          </p>
+        )}
+        {filtered.map((card, i) => <FeedItem key={card.id} card={card} index={i} />)}
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+</body>
+</html>
