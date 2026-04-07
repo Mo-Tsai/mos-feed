@@ -35,10 +35,6 @@
     from { opacity: 0; transform: translateY(8px); }
     to   { opacity: 1; transform: translateY(0); }
   }
-  @keyframes imgFade {
-    from { opacity: 0; }
-    to   { opacity: 1; }
-  }
   ::-webkit-scrollbar { width: 3px; }
   ::-webkit-scrollbar-thumb { background: var(--divider); border-radius: 4px; }
 
@@ -63,11 +59,6 @@
   }
   .refresh-btn:hover { border-color: var(--text-secondary); color: var(--text); }
 
-  .feed-img {
-    width: 100%; height: 180px; object-fit: cover;
-    border-radius: 2px; margin-bottom: 12px;
-    animation: imgFade 0.4s ease both;
-  }
 </style>
 </head>
 <body data-theme="dark">
@@ -127,26 +118,6 @@ const ALL_CARDS = [...BOOK_CARDS, ...TODAY_CARDS];
 const TABS = ["全部", "書櫃", "今日"];
 const TODAY_SUBS = ["全部", "世界新聞", "社交雷達"];
 
-// Unsplash keyword mapping for tags
-const TAG_KEYWORDS = {
-  "財富": "wealth,money", "槓桿": "technology,code", "獨特知識": "learning,books",
-  "幸福": "happiness,sunset", "長期賽局": "chess,strategy", "清晰思考": "clarity,zen",
-  "第一原理": "physics,science", "The Algorithm": "algorithm,engineering",
-  "失敗哲學": "rocket,launch", "使命": "mission,mountain", "產品設計": "design,minimal",
-  "人才策略": "team,people", "創造力": "creativity,art", "一人公司": "entrepreneur,laptop",
-  "多元興趣": "curiosity,explore", "AI 時代": "artificial-intelligence,robot",
-  "意義": "philosophy,meaning", "財經": "stock-market,finance", "地緣政治": "globe,politics",
-  "AI": "artificial-intelligence,technology", "科技": "technology,innovation",
-  "體育": "sports,stadium", "Wellness": "wellness,yoga", "設計": "interior-design,architecture",
-  "餐飲": "restaurant,food",
-};
-
-function getUnsplashUrl(tag, id) {
-  const kw = TAG_KEYWORDS[tag] || "abstract,minimal";
-  // Use card id as a stable seed so same card always gets same image
-  return `https://source.unsplash.com/600x300/?${kw}&sig=${id}`;
-}
-
 // Fisher-Yates shuffle
 function shuffle(arr) {
   const a = [...arr];
@@ -185,8 +156,6 @@ function TabNav({ active, onChange }) {
 
 function FeedItem({ card, index, showImage }) {
   const [expanded, setExpanded] = useState(false);
-  const isBook = BOOK_CHANNELS.includes(card.channel);
-  const imgUrl = isBook ? getUnsplashUrl(card.tag, card.id) : null;
   return (
     <div
       onClick={() => setExpanded(!expanded)}
@@ -235,16 +204,6 @@ function FeedItem({ card, index, showImage }) {
           marginTop: "14px",
           paddingTop: "14px",
         }}>
-          {/* Unsplash image — only for book cards */}
-          {imgUrl && (
-            <img
-              src={expanded ? imgUrl : ""}
-              alt=""
-              className="feed-img"
-              loading="lazy"
-              style={{ display: expanded ? "block" : "none" }}
-            />
-          )}
           <p style={{
             fontFamily: "system-ui, -apple-system, sans-serif",
             fontSize: "14px",
