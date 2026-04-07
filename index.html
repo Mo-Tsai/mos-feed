@@ -225,7 +225,7 @@ function FeedItem({ card, index, showImage }) {
           fontSize: "10px",
           color: "var(--text-secondary)",
         }}>
-          {expanded ? "收起 \u2191" : "中文 \u2193"}
+          {expanded ? "收起 ↑" : "中文 ↓"}
         </span>
         {card.url && (
           <a
@@ -245,7 +245,7 @@ function FeedItem({ card, index, showImage }) {
             onMouseEnter={e => e.currentTarget.style.color = "var(--text)"}
             onMouseLeave={e => e.currentTarget.style.color = "var(--text-secondary)"}
           >
-            source \u2197
+            source ↗
           </a>
         )}
       </div>
@@ -276,7 +276,7 @@ function ThemeToggle() {
       lineHeight: 1,
       transition: "color 0.3s ease",
     }}>
-      {dark ? "\u263D" : "\u2600\uFE0E"}
+      {dark ? "☽" : "☀︎"}
     </button>
   );
 }
@@ -370,7 +370,7 @@ function App() {
         {/* Refresh button for Bookshelf */}
         {activeTab === "Bookshelf" && (
           <button className="refresh-btn" onClick={() => setBookSeed(s => s + 1)}>
-            \u21BB REFRESH
+            ↻ REFRESH
           </button>
         )}
       </div>
