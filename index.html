@@ -10,16 +10,20 @@
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   :root {
-    --bg: #0F0D0B;
-    --text: #E8E5E0;
-    --text-secondary: #4A4845;
-    --divider: #252320;
+    --bg: #111;
+    --bg-elevated: #161616;
+    --text: #ccc;
+    --text-secondary: #555;
+    --divider: #222;
+    --accent: #888;
   }
   [data-theme="light"] {
-    --bg: #F5F2EC;
-    --text: #1A1714;
-    --text-secondary: #8A8785;
-    --divider: #DDD9D3;
+    --bg: #f0ede7;
+    --bg-elevated: #e8e4dd;
+    --text: #2a2725;
+    --text-secondary: #918e89;
+    --divider: #d5d1ca;
+    --accent: #777;
   }
   body {
     background: var(--bg);
@@ -28,26 +32,41 @@
     transition: background 0.3s ease, color 0.3s ease;
   }
   @keyframes fadeUp {
-    from { opacity: 0; transform: translateY(10px); }
+    from { opacity: 0; transform: translateY(8px); }
     to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes imgFade {
+    from { opacity: 0; }
+    to   { opacity: 1; }
   }
   ::-webkit-scrollbar { width: 3px; }
   ::-webkit-scrollbar-thumb { background: var(--divider); border-radius: 4px; }
 
-  /* Channel Nav */
-  .channel-nav {
-    display: flex; align-items: baseline; gap: 20px;
-    overflow-x: auto; scrollbar-width: none;
-    -ms-overflow-style: none;
+  .tab-nav {
+    display: flex; align-items: baseline; gap: 24px;
     padding: 0 24px;
   }
-  .channel-nav::-webkit-scrollbar { display: none; }
-  .channel-nav button {
+  .tab-nav button {
     background: none; border: none; cursor: pointer;
     white-space: nowrap; flex-shrink: 0;
     font-family: Georgia, serif;
     transition: all 0.3s ease;
     padding: 0;
+  }
+
+  .refresh-btn {
+    display: block; margin: 0 auto 40px; padding: 8px 20px;
+    background: none; border: 1px solid var(--divider);
+    color: var(--text-secondary); font-family: monospace;
+    font-size: 11px; letter-spacing: 0.1em; cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  .refresh-btn:hover { border-color: var(--text-secondary); color: var(--text); }
+
+  .feed-img {
+    width: 100%; height: 180px; object-fit: cover;
+    border-radius: 2px; margin-bottom: 12px;
+    animation: imgFade 0.4s ease both;
   }
 </style>
 </head>
@@ -55,7 +74,7 @@
 <div id="root"></div>
 
 <script type="text/babel">
-const { useState, useEffect, useRef } = React;
+const { useState, useEffect, useRef, useCallback } = React;
 
 // ─── Data ───────────────────────────────────────────────
 const NAVAL_CARDS = [
@@ -69,7 +88,7 @@ const NAVAL_CARDS = [
 
 const ELON_CARDS = [
   { id: "e1", channel: "Elon", tag: "第一原理", zh: "不要用類比思考，要從第一原理出發。類比讓你複製過去；第一原理讓你重新定義未來。", en: "Think from first principles rather than by analogy. Analogies copy the past; first principles redefine the future.", color: "#E8A838" },
-  { id: "e2", channel: "Elon", tag: "The Algorithm", zh: "五步工程流程：質疑需求 → 刪除冗餘 → 簡化流程 → 加速執行 → 自動化。順序不能亂，否則你只是在更有效率地做錯誤的事。", en: "Question → Delete → Simplify → Accelerate → Automate. Never automate something that shouldn't exist.", color: "#E8A838" },
+  { id: "e2", channel: "Elon", tag: "The Algorithm", zh: "五步工程流程：質疑需求 → 刪除冗餘 → 簡化流程 → 加速執行 → 自動化。順序不能亂，否則你只是在更有效率地做錯誤的事。", en: "Question \u2192 Delete \u2192 Simplify \u2192 Accelerate \u2192 Automate. Never automate something that shouldn't exist.", color: "#E8A838" },
   { id: "e3", channel: "Elon", tag: "失敗哲學", zh: "如果你沒在失敗，代表你根本不夠創新。失敗是創新的必要成本——SpaceX 前幾次爆炸只是數據收集。", en: "If things are not failing, you are not innovating enough. Failure is data collection, not shame.", color: "#E8A838" },
   { id: "e4", channel: "Elon", tag: "使命", zh: "當某件事足夠重要，即使勝算不在你這邊，你也會去做。這不是樂觀，這是對重要性的判斷。", en: "When something is important enough, you do it even if the odds are not in your favor.", color: "#E8A838" },
   { id: "e5", channel: "Elon", tag: "產品設計", zh: "任何需要說明書才能使用的產品，就是設計失敗。好的產品應該直覺到不需要教學。", en: "Any product that requires a training manual to use is poorly designed.", color: "#E8A838" },
@@ -79,18 +98,10 @@ const ELON_CARDS = [
 const DAN_CARDS = [
   { id: "d1", channel: "Dan Koe", tag: "創造力", zh: "創意枯竭的根源是認知疲勞，由三件事造成：社會制約、生產力至上思維、注意力碎片化。停止多工，回歸深度。", en: "Creativity is buried by conditioning, productivity mindset, and fragmented attention. Return to depth.", color: "#4EABA4" },
   { id: "d2", channel: "Dan Koe", tag: "一人公司", zh: "AI 降低了創作門檻，但提高了技術天花板。競爭者更多了，但真正努力的人反而更少——這是你的機會。", en: "AI lowers the floor but raises the ceiling. More competitors, fewer who actually try. That's your opportunity.", color: "#4EABA4" },
-  { id: "d3", channel: "Dan Koe", tag: "多元興趣", zh: "社會告訴你要專精一項技能，但多元興趣才是這個時代的超能力。關鍵是找一個「容器」把所有興趣整合成有意義的工作。", en: "Multiple interests aren't a weakness — they're a superpower. Find one container that makes them all profitable.", color: "#4EABA4" },
+  { id: "d3", channel: "Dan Koe", tag: "多元興趣", zh: "社會告訴你要專精一項技能，但多元興趣才是這個時代的超能力。關鍵是找一個「容器」把所有興趣整合成有意義的工作。", en: "Multiple interests aren't a weakness \u2014 they're a superpower. Find one container that makes them all profitable.", color: "#4EABA4" },
   { id: "d4", channel: "Dan Koe", tag: "AI 時代", zh: "面對 AI 有三種人：抗拒者、觀望者、好奇者。歷史告訴我們：學會操作新機器的人勝出，等待的人被指數級拉開。", en: "Three responses to AI: resist, wait, or explore. History shows the curious always win.", color: "#4EABA4" },
   { id: "d5", channel: "Dan Koe", tag: "意義", zh: "AI 時代「意義」將成為稀缺資源。人類的好奇心、掙扎與對地位的追求，是任何 AI 無法複製的價值來源。", en: "In the age of AI, meaning becomes the scarcest resource. Human curiosity and struggle are the last moats.", color: "#4EABA4" },
 ];
-
-const CHANNEL_META = {
-  "Naval":   { color: "#7C6AF7", icon: "◈", label: "納瓦爾寶典" },
-  "Elon":    { color: "#E8A838", icon: "⬡", label: "The Book of Elon" },
-  "Dan Koe": { color: "#4EABA4", icon: "◉", label: "Dan Koe 知識庫" },
-  "世界新聞": { color: "#E05C5C", icon: "◎", label: "World News" },
-  "社交雷達": { color: "#C97DD4", icon: "◐", label: "體育 · Wellness · 設計" },
-};
 
 const NEWS_CARDS = [
   { id: "news_0", channel: "世界新聞", tag: "財經", zh: "川普於4月2日宣布新一輪全球關稅，S&P 500在4月3日暴跌近5%，創下2020年疫情以來最大單日跌幅，隔日又再度下挫6%，那斯達克進入修正區間。聯準會亞特蘭大分部的GDP追蹤指標首次轉負，市場衰退警報全面亮起。", en: "Trump's sweeping tariffs trigger S&P 500's worst two-day crash since COVID, with Nasdaq entering correction territory and recession fears mounting.", color: "#E05C5C" },
@@ -108,44 +119,61 @@ const SOCIAL_CARDS = [
   { id: "social_4", channel: "社交雷達", tag: "餐飲", zh: "法國米其林名廚Cyril Lignac即將在紐約公園大道開設首間NYC餐廳「Bar des Pr\u00e9s」，引發美食界高度期待。與此同時，2026年米其林指南里約熱內盧暨聖保羅版本將於4月13日在傳奇科帕卡瓦納皇宮飯店正式揭曉，南美美食地圖即將改寫。", en: "Michelin-starred chef Cyril Lignac is bringing 'Bar des Pr\u00e9s' to NYC's Park Avenue, while the Michelin Guide for Rio de Janeiro and S\u00e3o Paulo 2026 debuts on April 13.", color: "#C97DD4" },
 ];
 
-const CHANNELS = ["全部", "Naval", "Elon", "Dan Koe", "世界新聞", "社交雷達"];
-const STATIC_CARDS = [...NAVAL_CARDS, ...ELON_CARDS, ...DAN_CARDS, ...NEWS_CARDS, ...SOCIAL_CARDS];
+const BOOK_CARDS = [...NAVAL_CARDS, ...ELON_CARDS, ...DAN_CARDS];
+const TODAY_CARDS = [...NEWS_CARDS, ...SOCIAL_CARDS];
+const ALL_CARDS = [...BOOK_CARDS, ...TODAY_CARDS];
 
+const TABS = ["全部", "書櫃", "今日"];
+
+// Unsplash keyword mapping for tags
+const TAG_KEYWORDS = {
+  "財富": "wealth,money", "槓桿": "technology,code", "獨特知識": "learning,books",
+  "幸福": "happiness,sunset", "長期賽局": "chess,strategy", "清晰思考": "clarity,zen",
+  "第一原理": "physics,science", "The Algorithm": "algorithm,engineering",
+  "失敗哲學": "rocket,launch", "使命": "mission,mountain", "產品設計": "design,minimal",
+  "人才策略": "team,people", "創造力": "creativity,art", "一人公司": "entrepreneur,laptop",
+  "多元興趣": "curiosity,explore", "AI 時代": "artificial-intelligence,robot",
+  "意義": "philosophy,meaning", "財經": "stock-market,finance", "地緣政治": "globe,politics",
+  "AI": "artificial-intelligence,technology", "科技": "technology,innovation",
+  "體育": "sports,stadium", "Wellness": "wellness,yoga", "設計": "interior-design,architecture",
+  "餐飲": "restaurant,food",
+};
+
+function getUnsplashUrl(tag, id) {
+  const kw = TAG_KEYWORDS[tag] || "abstract,minimal";
+  // Use card id as a stable seed so same card always gets same image
+  return `https://source.unsplash.com/600x300/?${kw}&sig=${id}`;
+}
+
+// Fisher-Yates shuffle
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
 
 // ─── Components ──────────────────────────────────────────
-function ChannelNav({ active, onChange }) {
-  const navRef = useRef(null);
-  const itemRefs = useRef({});
-
-  useEffect(() => {
-    const el = itemRefs.current[active];
-    if (el && navRef.current) {
-      const nav = navRef.current;
-      const navRect = nav.getBoundingClientRect();
-      const elRect = el.getBoundingClientRect();
-      const scrollTo = el.offsetLeft - navRect.width / 2 + elRect.width / 2;
-      nav.scrollTo({ left: scrollTo, behavior: "smooth" });
-    }
-  }, [active]);
-
+function TabNav({ active, onChange }) {
   return (
-    <div className="channel-nav" ref={navRef}>
-      {CHANNELS.map(ch => {
-        const isActive = active === ch;
+    <div className="tab-nav">
+      {TABS.map(tab => {
+        const isActive = active === tab;
         return (
           <button
-            key={ch}
-            ref={el => itemRefs.current[ch] = el}
-            onClick={() => onChange(ch)}
+            key={tab}
+            onClick={() => onChange(tab)}
             style={{
               fontSize: isActive ? "28px" : "16px",
               fontWeight: isActive ? 600 : 400,
-              color: isActive ? "var(--text)" : "var(--text)",
+              color: "var(--text)",
               opacity: isActive ? 1 : 0.3,
               lineHeight: 1.2,
             }}
           >
-            {ch}
+            {tab}
           </button>
         );
       })}
@@ -155,13 +183,13 @@ function ChannelNav({ active, onChange }) {
 
 function FeedItem({ card, index }) {
   const [expanded, setExpanded] = useState(false);
-  const meta = CHANNEL_META[card.channel];
+  const imgUrl = getUnsplashUrl(card.tag, card.id);
   return (
     <div
       onClick={() => setExpanded(!expanded)}
       style={{
-        padding: "0 0 32px 0",
-        marginBottom: "32px",
+        padding: "0 0 28px 0",
+        marginBottom: "28px",
         borderBottom: "1px solid var(--divider)",
         cursor: "pointer",
         animation: "fadeUp 0.35s ease both",
@@ -174,9 +202,9 @@ function FeedItem({ card, index }) {
         fontSize: "10px",
         textTransform: "uppercase",
         letterSpacing: "0.15em",
-        color: meta.color,
+        color: "var(--text-secondary)",
         display: "block",
-        marginBottom: "12px",
+        marginBottom: "10px",
       }}>
         {card.channel} / {card.tag}
       </span>
@@ -184,7 +212,7 @@ function FeedItem({ card, index }) {
       {/* English main text */}
       <p style={{
         fontFamily: "Georgia, 'Times New Roman', serif",
-        fontSize: "18px",
+        fontSize: "17px",
         lineHeight: 1.75,
         color: "var(--text)",
         margin: 0,
@@ -193,17 +221,25 @@ function FeedItem({ card, index }) {
         {card.en}
       </p>
 
-      {/* Chinese expandable */}
+      {/* Expandable: image + Chinese */}
       <div style={{
         overflow: "hidden",
-        maxHeight: expanded ? "200px" : "0px",
-        transition: "max-height 0.3s ease",
+        maxHeight: expanded ? "500px" : "0px",
+        transition: "max-height 0.4s ease",
       }}>
         <div style={{
           borderTop: "1px solid var(--divider)",
-          marginTop: "16px",
+          marginTop: "14px",
           paddingTop: "14px",
         }}>
+          {/* Unsplash image */}
+          <img
+            src={expanded ? imgUrl : ""}
+            alt=""
+            className="feed-img"
+            loading="lazy"
+            style={{ display: expanded ? "block" : "none" }}
+          />
           <p style={{
             fontFamily: "system-ui, -apple-system, sans-serif",
             fontSize: "14px",
@@ -217,8 +253,8 @@ function FeedItem({ card, index }) {
         </div>
       </div>
 
-      {/* Bottom row: toggle hint + source link */}
-      <div style={{ display: "flex", alignItems: "center", gap: "16px", marginTop: "12px" }}>
+      {/* Bottom row */}
+      <div style={{ display: "flex", alignItems: "center", gap: "16px", marginTop: "10px" }}>
         <span style={{
           fontFamily: "monospace",
           fontSize: "10px",
@@ -282,8 +318,19 @@ function ThemeToggle() {
 
 // ─── Main App ─────────────────────────────────────────────
 function App() {
-  const [activeChannel, setActiveChannel] = useState("全部");
-  const filtered = activeChannel === "全部" ? STATIC_CARDS : STATIC_CARDS.filter(c => c.channel === activeChannel);
+  const [activeTab, setActiveTab] = useState("全部");
+  const [bookSeed, setBookSeed] = useState(0);
+
+  // For 書櫃: randomly pick 6 cards, re-shuffle on Refresh
+  const shuffledBooks = React.useMemo(() => shuffle(BOOK_CARDS).slice(0, 6), [bookSeed]);
+
+  const getCards = () => {
+    if (activeTab === "書櫃") return shuffledBooks;
+    if (activeTab === "今日") return TODAY_CARDS;
+    return ALL_CARDS;
+  };
+
+  const cards = getCards();
 
   return (
     <div style={{ maxWidth: "640px", margin: "0 auto", minHeight: "100vh", background: "var(--bg)" }}>
@@ -313,21 +360,28 @@ function App() {
             opacity: 0.5,
             letterSpacing: "0.08em",
           }}>
-            {filtered.length} entries
+            {cards.length} entries
           </span>
         </div>
-        <ChannelNav active={activeChannel} onChange={setActiveChannel} />
+        <TabNav active={activeTab} onChange={setActiveTab} />
         <div style={{ height: "1px", background: "var(--divider)", margin: "20px 24px 0" }} />
       </div>
 
       {/* Content */}
-      <div style={{ padding: "32px 24px 80px" }}>
-        {filtered.length === 0 && (
+      <div style={{ padding: "28px 24px 80px" }}>
+        {cards.length === 0 && (
           <p style={{ fontFamily: "monospace", fontSize: "12px", color: "var(--text-secondary)" }}>
             No entries yet.
           </p>
         )}
-        {filtered.map((card, i) => <FeedItem key={card.id} card={card} index={i} />)}
+        {cards.map((card, i) => <FeedItem key={card.id + "-" + bookSeed} card={card} index={i} />)}
+
+        {/* Refresh button for 書櫃 */}
+        {activeTab === "書櫃" && (
+          <button className="refresh-btn" onClick={() => setBookSeed(s => s + 1)}>
+            \u21BB REFRESH
+          </button>
+        )}
       </div>
     </div>
   );
