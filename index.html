@@ -154,19 +154,19 @@ function CardView({ card }) {
   const isOpen = lang !== null;
   const text = lang === "ja" ? (card.ja || card.zh) : card.zh;
   return (
-    <div style={{ padding:"40px 32px 80px" }}>
-      <div style={{ display:"flex", alignItems:"center", gap:"10px", marginBottom:"24px" }}>
+    <div style={{ padding:"20px 32px 40px" }}>
+      <div style={{ display:"flex", alignItems:"center", gap:"10px", marginBottom:"14px" }}>
         <span style={{ display:"inline-block", width:"18px", height:"1px", background:card.color, flexShrink:0 }} />
         <span style={{ fontFamily:"'Courier New',monospace", fontSize:"9px", letterSpacing:"0.18em", textTransform:"uppercase", color:card.color, opacity:0.9 }}>{card.channel}</span>
         <span style={{ fontFamily:"'Courier New',monospace", fontSize:"9px", letterSpacing:"0.18em", textTransform:"uppercase", color:"var(--text-tertiary)" }}>{card.tag}</span>
       </div>
-      <p style={{ fontFamily:"Georgia,'Times New Roman',serif", fontSize:"20px", lineHeight:1.8, color:"var(--text)", margin:0, maxWidth:"54ch", letterSpacing:"-0.01em" }}>{card.en}</p>
+      <p style={{ fontFamily:"Georgia,'Times New Roman',serif", fontSize:"18px", lineHeight:1.7, color:"var(--text)", margin:0, maxWidth:"54ch", letterSpacing:"-0.01em" }}>{card.en}</p>
       <div style={{ overflow:"hidden", maxHeight:isOpen?"500px":"0px", transition:"max-height 0.45s cubic-bezier(0.4,0,0.2,1)" }}>
-        <div style={{ marginTop:"28px", paddingTop:"24px", borderTop:"1px solid var(--divider)" }}>
-          <p style={{ fontFamily:"system-ui,-apple-system,'PingFang TC','Hiragino Sans',sans-serif", fontSize:"15px", lineHeight:2, color:"var(--text-secondary)", margin:0, maxWidth:"48ch", fontWeight:300 }}>{text}</p>
+        <div style={{ marginTop:"16px", paddingTop:"14px", borderTop:"1px solid var(--divider)" }}>
+          <p style={{ fontFamily:"system-ui,-apple-system,'PingFang TC','Hiragino Sans',sans-serif", fontSize:"14px", lineHeight:1.85, color:"var(--text-secondary)", margin:0, maxWidth:"48ch", fontWeight:300 }}>{text}</p>
         </div>
       </div>
-      <div className="expand-row" style={{ marginTop:"24px" }}>
+      <div className="expand-row" style={{ marginTop:"14px" }}>
         <span onClick={e => { e.stopPropagation(); toggle("zh"); }} style={{ fontFamily:"'Courier New',monospace", fontSize:"9px", letterSpacing:"0.14em", textTransform:"uppercase", color: lang==="zh" ? "var(--text-secondary)" : "var(--text-tertiary)", cursor:"pointer" }}>{lang==="zh" ? "close ↑" : "中文 ↓"}</span>
         <span onClick={e => { e.stopPropagation(); toggle("ja"); }} style={{ fontFamily:"'Courier New',monospace", fontSize:"9px", letterSpacing:"0.14em", textTransform:"uppercase", color: lang==="ja" ? "var(--text-secondary)" : "var(--text-tertiary)", cursor:"pointer" }}>{lang==="ja" ? "close ↑" : "日本語 ↓"}</span>
         {card.url && (<a href={card.url} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} className="source-link">source ↗</a>)}
@@ -251,10 +251,10 @@ function App() {
     <div style={{ maxWidth:"680px", margin:"0 auto", height:"100vh", overflow:"hidden", display:"flex", flexDirection:"column" }}>
       <ThemeToggle />
       {/* Header */}
-      <div style={{ flexShrink:0, background:"var(--bg)", paddingTop:"36px", zIndex:10 }}>
-        <div style={{ padding:"0 32px", marginBottom:"28px" }}>
-          <div style={{ display:"flex", alignItems:"flex-end", justifyContent:"space-between", marginBottom:"6px" }}>
-            <h1 className="masthead-title" style={{ fontSize:"42px" }}>Mo's Feed</h1>
+      <div style={{ flexShrink:0, background:"var(--bg)", paddingTop:"20px", zIndex:10 }}>
+        <div style={{ padding:"0 32px", marginBottom:"16px" }}>
+          <div style={{ display:"flex", alignItems:"flex-end", justifyContent:"space-between", marginBottom:"4px" }}>
+            <h1 className="masthead-title" style={{ fontSize:"32px" }}>Mo's Feed</h1>
             <span className="running-header" style={{ paddingBottom:"8px" }}>{getDateString()}</span>
           </div>
           <div className="rule" />
@@ -283,7 +283,7 @@ function App() {
             ))}
           </div>
         )}
-        <div style={{ padding:"0 32px", marginTop:"16px" }}><div className="rule" /></div>
+        <div style={{ padding:"0 32px", marginTop:"10px" }}><div className="rule" /></div>
       </div>
 
       {/* Swipe area */}
