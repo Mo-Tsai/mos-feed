@@ -4,6 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Mo's Feed</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='12' fill='%23222'/><text x='50' y='68' font-family='Georgia,serif' font-size='52' font-weight='400' fill='%23e0ddd8' text-anchor='middle'>mf</text></svg>" />
 <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -61,7 +62,7 @@
 
 </style>
 </head>
-<body data-theme="dark">
+<body data-theme="light">
 <div id="root"></div>
 
 <script type="text/babel">
@@ -115,7 +116,7 @@ const BOOK_CARDS = [...NAVAL_CARDS, ...ELON_CARDS, ...DAN_CARDS];
 const TODAY_CARDS = [...NEWS_CARDS, ...SOCIAL_CARDS];
 const ALL_CARDS = [...BOOK_CARDS, ...TODAY_CARDS];
 
-const TABS = ["全部", "書櫃", "今日"];
+const TABS = ["Bookshelf", "Today"];
 const TODAY_SUBS = ["全部", "世界新聞", "社交雷達"];
 
 // Fisher-Yates shuffle
@@ -254,7 +255,7 @@ function FeedItem({ card, index, showImage }) {
 
 // ─── Theme Toggle ────────────────────────────────────────
 function ThemeToggle() {
-  const [dark, setDark] = useState(true);
+  const [dark, setDark] = useState(false);
   const toggle = () => {
     const next = !dark;
     setDark(next);
@@ -282,7 +283,7 @@ function ThemeToggle() {
 
 // ─── Main App ─────────────────────────────────────────────
 function App() {
-  const [activeTab, setActiveTab] = useState("全部");
+  const [activeTab, setActiveTab] = useState("Today");
   const [todaySub, setTodaySub] = useState("全部");
   const [bookSeed, setBookSeed] = useState(0);
 
@@ -290,13 +291,13 @@ function App() {
   const shuffledBooks = React.useMemo(() => shuffle(BOOK_CARDS).slice(0, 6), [bookSeed]);
 
   const getCards = () => {
-    if (activeTab === "書櫃") return shuffledBooks;
-    if (activeTab === "今日") {
+    if (activeTab === "Bookshelf") return shuffledBooks;
+    if (activeTab === "Today") {
       if (todaySub === "世界新聞") return NEWS_CARDS;
       if (todaySub === "社交雷達") return SOCIAL_CARDS;
       return TODAY_CARDS;
     }
-    return ALL_CARDS;
+    return TODAY_CARDS;
   };
 
   const cards = getCards();
@@ -332,10 +333,10 @@ function App() {
             {cards.length} entries
           </span>
         </div>
-        <TabNav active={activeTab} onChange={tab => { setActiveTab(tab); if (tab !== "今日") setTodaySub("全部"); }} />
+        <TabNav active={activeTab} onChange={tab => { setActiveTab(tab); if (tab !== "Today") setTodaySub("全部"); }} />
 
-        {/* Sub-tabs for 今日 */}
-        {activeTab === "今日" && (
+        {/* Sub-tabs for Today */}
+        {activeTab === "Today" && (
           <div style={{ display: "flex", gap: "16px", padding: "14px 24px 0" }}>
             {TODAY_SUBS.map(sub => (
               <button key={sub} onClick={() => setTodaySub(sub)} style={{
@@ -366,8 +367,8 @@ function App() {
         )}
         {cards.map((card, i) => <FeedItem key={card.id + "-" + bookSeed} card={card} index={i} />)}
 
-        {/* Refresh button for 書櫃 */}
-        {activeTab === "書櫃" && (
+        {/* Refresh button for Bookshelf */}
+        {activeTab === "Bookshelf" && (
           <button className="refresh-btn" onClick={() => setBookSeed(s => s + 1)}>
             \u21BB REFRESH
           </button>
