@@ -54,7 +54,7 @@
   .end-btn { padding: 12px 28px; background: none; border: 1px solid var(--divider); color: var(--text-tertiary); font-family: 'Courier New', monospace; font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; cursor: pointer; transition: all 0.25s ease; }
   .end-btn:hover { border-color: var(--text-secondary); color: var(--text-secondary); }
   .progress-bar { font-family: 'Courier New', monospace; font-size: 9px; letter-spacing: 0.14em; color: var(--text-tertiary); text-transform: uppercase; }
-  .theme-toggle { position: fixed; top: 28px; right: 28px; z-index: 100; background: none; border: none; cursor: pointer; font-size: 15px; color: var(--text-tertiary); padding: 4px; line-height: 1; transition: color 0.3s ease; font-family: 'Courier New', monospace; }
+  .theme-toggle { position: fixed; top: 28px; right: 12px; z-index: 100; background: none; border: none; cursor: pointer; font-size: 13px; color: var(--text-tertiary); padding: 4px; line-height: 1; transition: color 0.3s ease; font-family: 'Courier New', monospace; }
   .theme-toggle:hover { color: var(--text-secondary); }
   .rule { height: 1px; background: var(--divider); }
   .running-header { font-family: 'Courier New', monospace; font-size: 9px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--text-tertiary); }
@@ -253,9 +253,9 @@ function App() {
       {/* Header */}
       <div style={{ flexShrink:0, background:"var(--bg)", paddingTop:"20px", zIndex:10 }}>
         <div style={{ padding:"0 32px", marginBottom:"16px" }}>
-          <div style={{ display:"flex", alignItems:"flex-end", justifyContent:"space-between", marginBottom:"4px" }}>
+          <div style={{ marginBottom:"4px" }}>
             <h1 className="masthead-title" style={{ fontSize:"32px" }}>Mo's Feed</h1>
-            <span className="running-header" style={{ paddingBottom:"8px" }}>{getDateString()}</span>
+            <span className="running-header" style={{ display:"block", marginTop:"4px" }}>{getDateString()}</span>
           </div>
           <div className="rule" />
         </div>
