@@ -45,8 +45,8 @@
   .tab-nav { display: flex; align-items: baseline; gap: 28px; padding: 0 32px; }
   .tab-nav button { background: none; border: none; cursor: pointer; white-space: nowrap; flex-shrink: 0; font-family: Georgia, serif; transition: all 0.3s ease; padding: 0; line-height: 1.2; }
   .sub-pill { background: none; border: none; cursor: pointer; font-family: 'Courier New', monospace; font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; padding: 4px 0; transition: all 0.2s ease; border-bottom: 1px solid transparent; }
-  .swipe-area { position: relative; overflow: hidden; touch-action: pan-y; }
-  .card-slide { position: absolute; inset: 0; padding: 40px 32px 80px; display: flex; flex-direction: column; justify-content: flex-start; transition: transform 0.3s ease, opacity 0.3s ease; will-change: transform, opacity; overflow-y: auto; }
+  .swipe-area { position: relative; overflow-y: auto; overflow-x: hidden; touch-action: pan-y; -webkit-overflow-scrolling: touch; }
+  .card-slide { position: absolute; inset: 0; padding: 16px 32px 80px; display: flex; flex-direction: column; justify-content: flex-start; transition: transform 0.3s ease, opacity 0.3s ease; will-change: transform, opacity; overflow-y: auto; }
   .expand-row { display: flex; align-items: center; gap: 20px; margin-top: 18px; }
   .source-link { font-family: 'Courier New', monospace; font-size: 10px; letter-spacing: 0.1em; text-decoration: none; border-bottom: 1px solid var(--divider); padding-bottom: 1px; transition: all 0.2s ease; color: var(--text-tertiary); }
   .source-link:hover { color: var(--text-secondary); border-color: var(--text-secondary); }
@@ -146,7 +146,7 @@ function CardView({ card }) {
   const isOpen = lang !== null;
   const text = lang === "ja" ? (card.ja || card.zh) : card.zh;
   return (
-    <div style={{ padding:"20px 32px 40px" }}>
+    <div style={{ padding:"10px 32px 32px" }}>
       <div style={{ display:"flex", alignItems:"center", gap:"10px", marginBottom:"14px" }}>
         <span style={{ display:"inline-block", width:"18px", height:"1px", background:card.color, flexShrink:0 }} />
         <span style={{ fontFamily:"'Courier New',monospace", fontSize:"9px", letterSpacing:"0.18em", textTransform:"uppercase", color:card.color, opacity:0.9 }}>{card.channel}</span>
