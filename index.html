@@ -39,6 +39,12 @@
     from { opacity: 0; transform: translateY(12px); }
     to   { opacity: 1; transform: translateY(0); }
   }
+  @keyframes fadeInOut {
+    0% { opacity: 0; }
+    15% { opacity: 1; }
+    70% { opacity: 1; }
+    100% { opacity: 0; }
+  }
   ::-webkit-scrollbar { width: 2px; }
   ::-webkit-scrollbar-thumb { background: var(--divider); border-radius: 4px; }
   .masthead-title { font-family: Georgia, serif; font-weight: 400; font-style: italic; letter-spacing: -0.02em; color: var(--text); line-height: 1; }
@@ -162,12 +168,13 @@ function WordPopup({ popup, onSpeak }) {
         <button className="speak-btn" onClick={() => onSpeak(popup.word)} title="播放發音">🔊</button>
       </div>
       <div className="word-popup-trans">{popup.loading ? "翻譯中..." : popup.translation}</div>
+      <div style={{ fontFamily:"'Courier New',monospace", fontSize:"8px", color:"var(--text-tertiary)", marginTop:"8px" }}>powered by MyMemory · 翻譯僅供參考</div>
     </div>,
     document.body
   );
 }
 
-function CardView({ card }) {
+function CardView({ card, idx, total }) {
   const [lang, setLang] = useState(null);
   const [popup, setPopup] = useState(null);
   const [speaking, setSpeaking] = useState(false);
@@ -179,7 +186,20 @@ function CardView({ card }) {
   const speakWord = React.useCallback((word) => {
     speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(word);
-    u.lang = "en-US"; u.rate = 0.85;
+    u.lang = "en-US";
+    u.rate = 0.82;
+    u.pitch = 1.0;
+    const voices = speechSynthesis.getVoices();
+    const preferred = [
+      "Google US English",
+      "Microsoft Aria Online (Natural) - English (United States)",
+      "Samantha",
+      "Alex",
+    ];
+    const picked = preferred
+      .map(name => voices.find(v => v.name === name))
+      .find(Boolean);
+    if (picked) u.voice = picked;
     speechSynthesis.speak(u);
   }, []);
 
@@ -187,7 +207,35 @@ function CardView({ card }) {
     e.stopPropagation();
     if (speechSynthesis.speaking) { speechSynthesis.cancel(); setSpeaking(false); return; }
     const u = new SpeechSynthesisUtterance(card.en);
-    u.lang = "en-US"; u.rate = 0.92;
+    u.lang = "en-US";
+    u.rate = 0.88;
+    u.pitch = 1.0;
+    u.volume = 1.0;
+
+    const tryVoices = () => {
+      const voices = speechSynthesis.getVoices();
+      const preferred = [
+        "Google US English",
+        "Microsoft Aria Online (Natural) - English (United States)",
+        "Microsoft Guy Online (Natural) - English (United States)",
+        "Samantha",
+        "Alex",
+      ];
+      const picked = preferred
+        .map(name => voices.find(v => v.name === name))
+        .find(Boolean);
+      if (picked) u.voice = picked;
+    };
+
+    if (speechSynthesis.getVoices().length > 0) {
+      tryVoices();
+    } else {
+      speechSynthesis.onvoiceschanged = () => {
+        tryVoices();
+        speechSynthesis.onvoiceschanged = null;
+      };
+    }
+
     u.onend = () => setSpeaking(false);
     u.onerror = () => setSpeaking(false);
     setSpeaking(true);
@@ -235,16 +283,17 @@ function CardView({ card }) {
 
   const words = useMemo(() => card.en.split(/(\s+)/).map((chunk, i) => {
     if (/^\s+$/.test(chunk)) return chunk;
-    return <span key={i} className="clickable-word" onClick={(e) => handleWordClick(e, chunk)}>{chunk}</span>;
+    return <span key={i} className="clickable-word" onPointerDown={e => e.stopPropagation()} onClick={(e) => handleWordClick(e, chunk)}>{chunk}</span>;
   }), [card.en, handleWordClick]);
 
   return (
     <div style={{ padding:"10px 32px 32px" }}>
+      <div style={{ height:"2px", background:card.color, opacity:0.6, margin:"-10px -32px 14px", width:"calc(100% + 64px)" }} />
       <div style={{ display:"flex", alignItems:"center", gap:"10px", marginBottom:"14px" }}>
         <span style={{ display:"inline-block", width:"18px", height:"1px", background:card.color, flexShrink:0 }} />
         <span style={{ fontFamily:"'Courier New',monospace", fontSize:"9px", letterSpacing:"0.18em", textTransform:"uppercase", color:card.color, opacity:0.9 }}>{card.channel}</span>
         <span style={{ fontFamily:"'Courier New',monospace", fontSize:"9px", letterSpacing:"0.18em", textTransform:"uppercase", color:"var(--text-tertiary)" }}>{card.tag}</span>
-        <button className={"speak-btn" + (speaking ? " active" : "")} onClick={speakAll} title={speaking ? "停止朗讀" : "朗讀全文"} style={{ marginLeft:"auto" }}>{speaking ? "■" : "🔊"}</button>
+        <button className={"speak-btn" + (speaking ? " active" : "")} onPointerDown={e => e.stopPropagation()} onClick={speakAll} title={speaking ? "停止朗讀" : "朗讀全文"} style={{ marginLeft:"auto" }}>{speaking ? "■" : "🔊"}</button>
       </div>
       <p style={{ fontFamily:"Georgia,'Times New Roman',serif", fontSize:"18px", lineHeight:1.7, color:"var(--text)", margin:0, maxWidth:"54ch", letterSpacing:"-0.01em" }}>{words}</p>
       <WordPopup popup={popup} onSpeak={speakWord} />
@@ -254,20 +303,24 @@ function CardView({ card }) {
         </div>
       </div>
       <div className="expand-row" style={{ marginTop:"14px" }}>
-        <span onClick={e => { e.stopPropagation(); toggle("zh"); }} style={{ fontFamily:"'Courier New',monospace", fontSize:"9px", letterSpacing:"0.14em", textTransform:"uppercase", color: lang==="zh" ? "var(--text-secondary)" : "var(--text-tertiary)", cursor:"pointer" }}>{lang==="zh" ? "close ↑" : "中文 ↓"}</span>
-        <span onClick={e => { e.stopPropagation(); toggle("ja"); }} style={{ fontFamily:"'Courier New',monospace", fontSize:"9px", letterSpacing:"0.14em", textTransform:"uppercase", color: lang==="ja" ? "var(--text-secondary)" : "var(--text-tertiary)", cursor:"pointer" }}>{lang==="ja" ? "close ↑" : "日本語 ↓"}</span>
-        {card.url && (<a href={card.url} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} className="source-link">source ↗</a>)}
+        <span onPointerDown={e => e.stopPropagation()} onClick={e => { e.stopPropagation(); toggle("zh"); }} style={{ fontFamily:"'Courier New',monospace", fontSize:"9px", letterSpacing:"0.14em", textTransform:"uppercase", color: lang==="zh" ? "var(--text-secondary)" : "var(--text-tertiary)", cursor:"pointer" }}>{lang==="zh" ? "close ↑" : "中文 ↓"}</span>
+        <span onPointerDown={e => e.stopPropagation()} onClick={e => { e.stopPropagation(); toggle("ja"); }} style={{ fontFamily:"'Courier New',monospace", fontSize:"9px", letterSpacing:"0.14em", textTransform:"uppercase", color: lang==="ja" ? "var(--text-secondary)" : "var(--text-tertiary)", cursor:"pointer" }}>{lang==="ja" ? "close ↑" : "日本語 ↓"}</span>
+        {card.url && (<a href={card.url} target="_blank" rel="noopener noreferrer" onPointerDown={e => e.stopPropagation()} onClick={e => e.stopPropagation()} className="source-link">source ↗</a>)}
+      </div>
+      <div style={{ position:"relative", marginTop:"16px" }}>
+        <div style={{ height:"1px", background:"var(--divider)" }} />
+        <div style={{ position:"absolute", top:0, left:0, height:"1px", background:"var(--text-tertiary)", width:((idx+1)/total*100)+"%", transition:"width 0.3s" }} />
       </div>
     </div>
   );
 }
 
-function EndScreen({ onBack, onShuffle, isBookshelf }) {
+function EndScreen({ onPrev, onShuffle, isBookshelf }) {
   return (
     <div className="end-screen">
       <p style={{ fontFamily:"'Courier New',monospace", fontSize:"11px", letterSpacing:"0.14em", color:"var(--text-tertiary)", textTransform:"uppercase" }}>end of feed</p>
       <div style={{ display:"flex", gap:"12px" }}>
-        <button className="end-btn" onClick={onBack}>← Turn Back</button>
+        <button className="end-btn" onClick={onPrev}>← Prev</button>
         {isBookshelf && <button className="end-btn" onClick={onShuffle}>↻ Shuffle</button>}
       </div>
     </div>
@@ -299,14 +352,35 @@ function App() {
   const total = cards.length;
   const atEnd = idx >= total;
 
-  // Reset index when cards change
-  React.useEffect(() => { setIdx(0); setDir(0); }, [activeTab, todaySub, bookSeed]);
+  const [resumeMsg, setResumeMsg] = useState(null);
+  const lsKey = "mosfeed_" + activeTab + "_" + todaySub;
+
+  // Read localStorage on tab/sub change
+  React.useEffect(() => {
+    const key = "mosfeed_" + activeTab + "_" + todaySub;
+    try {
+      const saved = parseInt(localStorage.getItem(key), 10);
+      if (saved > 0 && saved < cards.length) {
+        setIdx(saved); setDir(0);
+        setResumeMsg({ idx: saved, total: cards.length });
+        setTimeout(() => setResumeMsg(null), 1500);
+        return;
+      }
+    } catch(e) {}
+    setIdx(0); setDir(0);
+  }, [activeTab, todaySub]);
+
+  // Reset on shuffle
+  React.useEffect(() => {
+    if (bookSeed > 0) { setIdx(0); setDir(0); try { localStorage.removeItem("mosfeed_Bookshelf_全部"); } catch(e) {} }
+  }, [bookSeed]);
 
   const go = (newIdx) => {
     if (newIdx < 0) return;
     if (newIdx > total) return;
     setDir(newIdx > idx ? 1 : -1);
     setIdx(newIdx);
+    try { localStorage.setItem(lsKey, String(newIdx)); } catch(e) {}
   };
 
   // Keyboard
@@ -358,7 +432,6 @@ function App() {
               );
             })}
           </div>
-          {!atEnd && <span className="progress-bar">{idx + 1} / {total}</span>}
         </div>
         {activeTab === "Today" && (
           <div style={{ display:"flex", gap:"20px", padding:"14px 32px 0" }}>
@@ -371,29 +444,39 @@ function App() {
           </div>
         )}
         <div style={{ padding:"0 32px", marginTop:"10px" }}><div className="rule" /></div>
+        {resumeMsg && (
+          <div className="running-header" style={{ padding:"6px 32px", animation:"fadeInOut 1.5s ease forwards" }}>
+            繼續閱讀 {resumeMsg.idx + 1}/{resumeMsg.total}
+          </div>
+        )}
       </div>
 
       {/* Swipe area */}
       <div className="swipe-area" style={{ flex:1 }}
         onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}
-        onClick={(e) => {
-          const rect = e.currentTarget.getBoundingClientRect();
-          const x = e.clientX - rect.left;
-          if (x < rect.width * 0.25) go(idx - 1);
-          else if (x > rect.width * 0.75) go(idx + 1);
+        onPointerDown={(e) => { e.currentTarget.dataset.px = e.clientX; e.currentTarget.dataset.py = e.clientY; }}
+        onPointerUp={(e) => {
+          const sx = parseFloat(e.currentTarget.dataset.px), sy = parseFloat(e.currentTarget.dataset.py);
+          const dx = e.clientX - sx, dy = e.clientY - sy;
+          if (Math.sqrt(dx*dx+dy*dy) < 10) {
+            const rect = e.currentTarget.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            if (x < rect.width * 0.25) go(idx - 1);
+            else if (x > rect.width * 0.75) go(idx + 1);
+          }
         }}
       >
         {atEnd ? (
           <div className="card-slide" style={{ position:"relative", transform:"none" }}>
             <EndScreen
-              onBack={() => go(0)}
+              onPrev={() => go(total - 1)}
               onShuffle={() => setBookSeed(s => s + 1)}
               isBookshelf={activeTab === "Bookshelf"}
             />
           </div>
         ) : (
           <div className="card-slide" key={cards[idx].id + "-" + bookSeed} style={{ position:"relative", transform:"none" }}>
-            <CardView card={cards[idx]} />
+            <CardView card={cards[idx]} idx={idx} total={total} />
           </div>
         )}
       </div>
