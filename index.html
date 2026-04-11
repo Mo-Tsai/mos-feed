@@ -58,6 +58,15 @@
   .theme-toggle:hover { color: var(--text-secondary); }
   .rule { height: 1px; background: var(--divider); }
   .running-header { font-family: 'Courier New', monospace; font-size: 9px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--text-tertiary); }
+  .word-popup { position: fixed; z-index: 200; background: var(--bg-elevated); border: 1px solid var(--divider); border-radius: 8px; padding: 12px 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); min-width: 120px; max-width: 260px; }
+  .word-popup-word { font-family: Georgia, serif; font-size: 18px; font-weight: 600; color: var(--text); margin-bottom: 4px; display: flex; align-items: center; gap: 8px; }
+  .word-popup-trans { font-family: system-ui, -apple-system, 'PingFang TC', sans-serif; font-size: 14px; color: var(--text-secondary); line-height: 1.6; font-weight: 300; }
+  .speak-btn { background: none; border: none; cursor: pointer; font-size: 13px; color: var(--text-tertiary); padding: 2px; transition: color 0.2s; line-height: 1; }
+  .speak-btn:hover { color: var(--text-secondary); }
+  .speak-btn.active { color: var(--text); }
+  .clickable-word { cursor: pointer; border-radius: 2px; transition: background 0.15s; }
+  .clickable-word:hover { background: var(--bg-elevated); }
+  [data-theme="dark"] .word-popup { box-shadow: 0 4px 20px rgba(0,0,0,0.4); }
 </style>
 </head>
 <body data-theme="light">
@@ -138,19 +147,103 @@ function getDateString() {
   return new Date().toLocaleDateString("en-US", { month:"short", day:"numeric", year:"numeric" }).toUpperCase();
 }
 
+function WordPopup({ popup, onSpeak }) {
+  if (!popup) return null;
+  const popupX = Math.min(popup.x, window.innerWidth - 270);
+  const popupY = popup.y + 120 > window.innerHeight ? popup.y - 80 : popup.y;
+  return ReactDOM.createPortal(
+    <div className="word-popup" style={{ left: popupX + "px", top: popupY + "px" }} onClick={e => e.stopPropagation()}>
+      <div className="word-popup-word">
+        {popup.word}
+        <button className="speak-btn" onClick={() => onSpeak(popup.word)} title="播放發音">🔊</button>
+      </div>
+      <div className="word-popup-trans">{popup.loading ? "翻譯中..." : popup.translation}</div>
+    </div>,
+    document.body
+  );
+}
+
 function CardView({ card }) {
   const [lang, setLang] = useState(null);
+  const [popup, setPopup] = useState(null);
+  const [speaking, setSpeaking] = useState(false);
+  const abortRef = React.useRef(null);
   const toggle = (target) => setLang(lang === target ? null : target);
   const isOpen = lang !== null;
   const text = lang === "ja" ? (card.ja || card.zh) : card.zh;
+
+  const speakWord = React.useCallback((word) => {
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(word);
+    u.lang = "en-US"; u.rate = 0.85;
+    speechSynthesis.speak(u);
+  }, []);
+
+  const speakAll = React.useCallback((e) => {
+    e.stopPropagation();
+    if (speechSynthesis.speaking) { speechSynthesis.cancel(); setSpeaking(false); return; }
+    const u = new SpeechSynthesisUtterance(card.en);
+    u.lang = "en-US"; u.rate = 0.92;
+    u.onend = () => setSpeaking(false);
+    u.onerror = () => setSpeaking(false);
+    setSpeaking(true);
+    speechSynthesis.speak(u);
+  }, [card.en]);
+
+  // Stop speaking & close popup when card changes
+  React.useEffect(() => {
+    return () => {
+      speechSynthesis.cancel();
+      setSpeaking(false);
+      setPopup(null);
+      if (abortRef.current) abortRef.current.abort();
+    };
+  }, [card.id]);
+
+  const handleWordClick = React.useCallback(async (e, rawWord) => {
+    e.stopPropagation();
+    const clean = rawWord.replace(/[^a-zA-Z'-]/g, "");
+    if (!clean || clean.length < 2) return;
+    // Abort previous in-flight request
+    if (abortRef.current) abortRef.current.abort();
+    const ctrl = new AbortController();
+    abortRef.current = ctrl;
+    const rect = e.target.getBoundingClientRect();
+    setPopup({ word: clean, x: rect.left, y: rect.bottom + 6, translation: null, loading: true });
+    try {
+      const res = await fetch("https://api.mymemory.translated.net/get?q=" + encodeURIComponent(clean) + "&langpair=en|zh-TW", { signal: ctrl.signal });
+      const data = await res.json();
+      setPopup(p => p && p.word === clean ? { ...p, translation: data.responseData.translatedText, loading: false } : p);
+    } catch (err) {
+      if (err.name !== "AbortError") {
+        setPopup(p => p && p.word === clean ? { ...p, translation: "(翻譯失敗)", loading: false } : p);
+      }
+    }
+  }, []);
+
+  // Close popup on outside click
+  React.useEffect(() => {
+    if (!popup) return;
+    const close = () => setPopup(null);
+    const timer = setTimeout(() => window.addEventListener("click", close), 10);
+    return () => { clearTimeout(timer); window.removeEventListener("click", close); };
+  }, [popup]);
+
+  const words = useMemo(() => card.en.split(/(\s+)/).map((chunk, i) => {
+    if (/^\s+$/.test(chunk)) return chunk;
+    return <span key={i} className="clickable-word" onClick={(e) => handleWordClick(e, chunk)}>{chunk}</span>;
+  }), [card.en, handleWordClick]);
+
   return (
     <div style={{ padding:"10px 32px 32px" }}>
       <div style={{ display:"flex", alignItems:"center", gap:"10px", marginBottom:"14px" }}>
         <span style={{ display:"inline-block", width:"18px", height:"1px", background:card.color, flexShrink:0 }} />
         <span style={{ fontFamily:"'Courier New',monospace", fontSize:"9px", letterSpacing:"0.18em", textTransform:"uppercase", color:card.color, opacity:0.9 }}>{card.channel}</span>
         <span style={{ fontFamily:"'Courier New',monospace", fontSize:"9px", letterSpacing:"0.18em", textTransform:"uppercase", color:"var(--text-tertiary)" }}>{card.tag}</span>
+        <button className={"speak-btn" + (speaking ? " active" : "")} onClick={speakAll} title={speaking ? "停止朗讀" : "朗讀全文"} style={{ marginLeft:"auto" }}>{speaking ? "■" : "🔊"}</button>
       </div>
-      <p style={{ fontFamily:"Georgia,'Times New Roman',serif", fontSize:"18px", lineHeight:1.7, color:"var(--text)", margin:0, maxWidth:"54ch", letterSpacing:"-0.01em" }}>{card.en}</p>
+      <p style={{ fontFamily:"Georgia,'Times New Roman',serif", fontSize:"18px", lineHeight:1.7, color:"var(--text)", margin:0, maxWidth:"54ch", letterSpacing:"-0.01em" }}>{words}</p>
+      <WordPopup popup={popup} onSpeak={speakWord} />
       <div style={{ overflow:"hidden", maxHeight:isOpen?"500px":"0px", transition:"max-height 0.45s cubic-bezier(0.4,0,0.2,1)" }}>
         <div style={{ marginTop:"16px", paddingTop:"14px", borderTop:"1px solid var(--divider)" }}>
           <p style={{ fontFamily:"system-ui,-apple-system,'PingFang TC','Hiragino Sans',sans-serif", fontSize:"14px", lineHeight:1.85, color:"var(--text-secondary)", margin:0, maxWidth:"48ch", fontWeight:300 }}>{text}</p>
