@@ -73,12 +73,60 @@
   .clickable-word { cursor: pointer; border-radius: 2px; transition: background 0.15s; }
   .clickable-word:hover { background: var(--bg-elevated); }
   [data-theme="dark"] .word-popup { box-shadow: 0 4px 20px rgba(0,0,0,0.4); }
+  .az-input { width:100%; background:var(--bg); border:1px solid var(--divider); color:var(--text); padding:7px 10px; font-family:'Courier New',monospace; font-size:11px; outline:none; -webkit-appearance:none; appearance:none; border-radius:0; }
+  .az-input:focus { border-color:var(--text-secondary); }
 </style>
 </head>
 <body data-theme="light">
 <div id="root"></div>
 <script type="text/babel">
 const { useState, useMemo } = React;
+
+// ===== AZURE TTS =====
+let _azToken = null, _azTokenExp = 0, _azAbort = null;
+function _xmlEsc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+async function _getAzToken(key, region, signal) {
+  const now = Date.now();
+  if (_azToken && now < _azTokenExp) return _azToken;
+  const res = await fetch(`https://${region}.api.cognitive.microsoft.com/sts/v1.0/issueToken`, { method:'POST', headers:{'Ocp-Apim-Subscription-Key':key}, signal });
+  if (!res.ok) throw new Error('Token ' + res.status);
+  _azToken = await res.text();
+  _azTokenExp = now + 9*60*1000;
+  return _azToken;
+}
+function azureStop() { if (_azAbort) { _azAbort.abort(); _azAbort = null; } }
+async function azureSpeak(text, { rate='0%', onStart, onEnd, onError }={}) {
+  const key = localStorage.getItem('mf_azureKey') || '';
+  const region = localStorage.getItem('mf_azureRegion') || 'eastus';
+  const voice = localStorage.getItem('mf_azureVoice') || 'en-US-AriaNeural';
+  if (!key) return false;
+  azureStop();
+  const ctrl = new AbortController(); _azAbort = ctrl;
+  try {
+    const token = await _getAzToken(key, region, ctrl.signal);
+    const ssml = `<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='en-US'><voice name='${voice}'><prosody rate='${rate}'>${_xmlEsc(text)}</prosody></voice></speak>`;
+    const res = await fetch(`https://${region}.tts.speech.microsoft.com/cognitiveservices/v1`, {
+      method:'POST', signal:ctrl.signal,
+      headers:{'Authorization':'Bearer '+token,'Content-Type':'application/ssml+xml','X-Microsoft-OutputFormat':'audio-16khz-128kbitrate-mono-mp3'},
+      body:ssml
+    });
+    if (!res.ok) throw new Error('TTS ' + res.status);
+    const blob = await res.blob();
+    if (ctrl.signal.aborted) return true;
+    const url = URL.createObjectURL(blob);
+    const audio = new Audio(url);
+    if (onStart) onStart(audio);
+    audio.onended = () => { URL.revokeObjectURL(url); if (onEnd) onEnd(); };
+    audio.onerror = () => { URL.revokeObjectURL(url); if (onError) onError(); };
+    await audio.play();
+    return true;
+  } catch(e) {
+    if (e.name === 'AbortError') return true;
+    _azToken = null;
+    if (onError) onError(e);
+    return false;
+  }
+}
 
 const NAVAL_CARDS = [
   { id:"n1", channel:"Naval", tag:"財富", color:"#7C6AF7", url:"https://www.notion.so/3238ba4c063381a0ba28fb48effb0deb", en:"Every hour you sell, you lose twice. Once for the hour itself — and once for the leverage that hour could have built. Renting time is not income. It's a slow exit.", zh:"你每賣出一個小時，就輸了兩次：一次是那個小時本身，一次是那個小時原本能建立的槓桿。用時間換錢不叫收入，叫做慢慢離場。", ja:"一時間を売るたびに、二度負ける——その一時間そのものと、その一時間が本来生み出せたレバレッジだ。時間をお金に換えることは収入ではない。ゆっくりと退場しているだけだ。" },
@@ -179,72 +227,61 @@ function CardView({ card, idx, total }) {
   const [popup, setPopup] = useState(null);
   const [speaking, setSpeaking] = useState(false);
   const abortRef = React.useRef(null);
+  const audioRef = React.useRef(null);
   const toggle = (target) => setLang(lang === target ? null : target);
   const isOpen = lang !== null;
   const text = lang === "ja" ? (card.ja || card.zh) : card.zh;
 
-  const speakWord = React.useCallback((word) => {
-    speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(word);
-    u.lang = "en-US";
-    u.rate = 0.82;
-    u.pitch = 1.0;
-    const voices = speechSynthesis.getVoices();
-    const preferred = [
-      "Google US English",
-      "Microsoft Aria Online (Natural) - English (United States)",
-      "Samantha",
-      "Alex",
-    ];
-    const picked = preferred
-      .map(name => voices.find(v => v.name === name))
-      .find(Boolean);
-    if (picked) u.voice = picked;
-    speechSynthesis.speak(u);
+  const speakWord = React.useCallback(async (word) => {
+    const ok = await azureSpeak(word, { rate:'-15%' });
+    if (!ok) {
+      speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(word);
+      u.lang = "en-US"; u.rate = 0.82;
+      const voices = speechSynthesis.getVoices();
+      const picked = ["Google US English","Microsoft Aria Online (Natural) - English (United States)","Samantha","Alex"].map(n => voices.find(v => v.name === n)).find(Boolean);
+      if (picked) u.voice = picked;
+      speechSynthesis.speak(u);
+    }
   }, []);
 
-  const speakAll = React.useCallback((e) => {
+  const speakAll = React.useCallback(async (e) => {
     e.stopPropagation();
-    if (speechSynthesis.speaking) { speechSynthesis.cancel(); setSpeaking(false); return; }
-    const u = new SpeechSynthesisUtterance(card.en);
-    u.lang = "en-US";
-    u.rate = 0.88;
-    u.pitch = 1.0;
-    u.volume = 1.0;
-
-    const tryVoices = () => {
-      const voices = speechSynthesis.getVoices();
-      const preferred = [
-        "Google US English",
-        "Microsoft Aria Online (Natural) - English (United States)",
-        "Microsoft Guy Online (Natural) - English (United States)",
-        "Samantha",
-        "Alex",
-      ];
-      const picked = preferred
-        .map(name => voices.find(v => v.name === name))
-        .find(Boolean);
-      if (picked) u.voice = picked;
-    };
-
-    if (speechSynthesis.getVoices().length > 0) {
-      tryVoices();
-    } else {
-      speechSynthesis.onvoiceschanged = () => {
-        tryVoices();
-        speechSynthesis.onvoiceschanged = null;
-      };
+    if (speaking) {
+      azureStop();
+      if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
+      speechSynthesis.cancel();
+      setSpeaking(false);
+      return;
     }
-
-    u.onend = () => setSpeaking(false);
-    u.onerror = () => setSpeaking(false);
     setSpeaking(true);
-    speechSynthesis.speak(u);
-  }, [card.en]);
+    const ok = await azureSpeak(card.en, {
+      rate: '-5%',
+      onStart: (audio) => { audioRef.current = audio; },
+      onEnd: () => { audioRef.current = null; setSpeaking(false); },
+      onError: () => { audioRef.current = null; setSpeaking(false); }
+    });
+    if (!ok) {
+      const u = new SpeechSynthesisUtterance(card.en);
+      u.lang = "en-US"; u.rate = 0.88; u.pitch = 1.0; u.volume = 1.0;
+      const tryVoices = () => {
+        const voices = speechSynthesis.getVoices();
+        const picked = ["Google US English","Microsoft Aria Online (Natural) - English (United States)","Microsoft Guy Online (Natural) - English (United States)","Samantha","Alex"].map(n => voices.find(v => v.name === n)).find(Boolean);
+        if (picked) u.voice = picked;
+      };
+      if (speechSynthesis.getVoices().length > 0) tryVoices();
+      else { speechSynthesis.onvoiceschanged = () => { tryVoices(); speechSynthesis.onvoiceschanged = null; }; }
+      u.onend = () => setSpeaking(false);
+      u.onerror = () => setSpeaking(false);
+      speechSynthesis.speak(u);
+    }
+  }, [card.en, speaking]);
 
   // Stop speaking & close popup when card changes
   React.useEffect(() => {
     return () => {
+      azureStop();
+      if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
       speechSynthesis.cancel();
       setSpeaking(false);
       setPopup(null);
@@ -327,10 +364,76 @@ function EndScreen({ onPrev, onShuffle, isBookshelf }) {
   );
 }
 
+function SettingsPanel({ open, onClose }) {
+  const [key, setKey] = React.useState(() => localStorage.getItem('mf_azureKey') || '');
+  const [region, setRegion] = React.useState(() => localStorage.getItem('mf_azureRegion') || 'eastus');
+  const [voice, setVoice] = React.useState(() => localStorage.getItem('mf_azureVoice') || 'en-US-AriaNeural');
+  const [status, setStatus] = React.useState('');
+  const save = () => {
+    localStorage.setItem('mf_azureKey', key);
+    localStorage.setItem('mf_azureRegion', region);
+    localStorage.setItem('mf_azureVoice', voice);
+    _azToken = null;
+  };
+  const handleSave = () => { save(); setStatus('已儲存'); setTimeout(() => setStatus(''), 2000); };
+  const handleTest = async () => {
+    save(); setStatus('測試中…');
+    const ok = await azureSpeak('Hello, this is Azure Neural voice for Mo\'s Feed.', {
+      onEnd: () => setStatus('✓ 連線成功'),
+      onError: (e) => setStatus('✗ ' + (e?.message || '失敗'))
+    });
+    if (!ok) setStatus('✗ 請先填入 Azure Key');
+  };
+  if (!open) return null;
+  return ReactDOM.createPortal(
+    <>
+      <div style={{ position:'fixed',inset:0,zIndex:149 }} onClick={onClose} />
+      <div style={{ position:'fixed',top:0,right:0,bottom:0,width:'252px',background:'var(--bg-elevated)',borderLeft:'1px solid var(--divider)',zIndex:150,padding:'20px 18px',display:'flex',flexDirection:'column',gap:'14px',overflowY:'auto' }}>
+        <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'4px' }}>
+          <span style={{ fontFamily:"'Courier New',monospace",fontSize:'9px',letterSpacing:'0.18em',textTransform:'uppercase',color:'var(--text-tertiary)' }}>Azure TTS 設定</span>
+          <button onClick={onClose} style={{ background:'none',border:'none',cursor:'pointer',color:'var(--text-tertiary)',fontFamily:"'Courier New',monospace",fontSize:'12px',padding:'0' }}>✕</button>
+        </div>
+        <div>
+          <div style={{ fontFamily:"'Courier New',monospace",fontSize:'9px',letterSpacing:'0.14em',textTransform:'uppercase',color:'var(--text-tertiary)',marginBottom:'5px' }}>Subscription Key</div>
+          <input type="password" className="az-input" value={key} onChange={e=>setKey(e.target.value)} placeholder="貼上 Azure Key…" />
+        </div>
+        <div>
+          <div style={{ fontFamily:"'Courier New',monospace",fontSize:'9px',letterSpacing:'0.14em',textTransform:'uppercase',color:'var(--text-tertiary)',marginBottom:'5px' }}>Region</div>
+          <input className="az-input" value={region} onChange={e=>setRegion(e.target.value)} placeholder="eastus" />
+        </div>
+        <div>
+          <div style={{ fontFamily:"'Courier New',monospace",fontSize:'9px',letterSpacing:'0.14em',textTransform:'uppercase',color:'var(--text-tertiary)',marginBottom:'5px' }}>Voice</div>
+          <select className="az-input" value={voice} onChange={e=>setVoice(e.target.value)} style={{ cursor:'pointer' }}>
+            <option value="en-US-AriaNeural">Aria（女）自然流暢</option>
+            <option value="en-US-JennyNeural">Jenny（女）清晰</option>
+            <option value="en-US-GuyNeural">Guy（男）沉穩</option>
+            <option value="en-US-DavisNeural">Davis（男）個性</option>
+            <option value="en-US-TonyNeural">Tony（男）自信</option>
+          </select>
+        </div>
+        <div style={{ display:'flex',gap:'8px' }}>
+          <button onClick={handleSave} style={{ flex:1,padding:'8px 0',background:'none',border:'1px solid var(--divider)',color:'var(--text-tertiary)',fontFamily:"'Courier New',monospace",fontSize:'9px',letterSpacing:'0.12em',textTransform:'uppercase',cursor:'pointer' }}>儲存</button>
+          <button onClick={handleTest} style={{ flex:1,padding:'8px 0',background:'none',border:'1px solid var(--text-secondary)',color:'var(--text-secondary)',fontFamily:"'Courier New',monospace",fontSize:'9px',letterSpacing:'0.12em',textTransform:'uppercase',cursor:'pointer' }}>測試</button>
+        </div>
+        {status && <div style={{ fontFamily:"'Courier New',monospace",fontSize:'9px',color:'var(--text-tertiary)',letterSpacing:'0.1em' }}>{status}</div>}
+        <div style={{ marginTop:'auto',fontFamily:"'Courier New',monospace",fontSize:'8px',color:'var(--text-tertiary)',lineHeight:1.7,paddingTop:'8px',borderTop:'1px solid var(--divider)' }}>Key 存於 localStorage<br/>未設定時退回瀏覽器 TTS</div>
+      </div>
+    </>,
+    document.body
+  );
+}
+
 function ThemeToggle() {
   const [dark, setDark] = useState(false);
+  const [settingsOpen, setSettingsOpen] = React.useState(false);
   const toggle = () => { const next = !dark; setDark(next); document.body.setAttribute("data-theme", next ? "dark" : "light"); };
-  return <button className="theme-toggle" onClick={toggle}>{dark ? "○" : "●"}</button>;
+  return (
+    <>
+      <button className="theme-toggle" onClick={toggle}>{dark ? "○" : "●"}</button>
+      <button className="theme-toggle" onClick={() => setSettingsOpen(o => !o)} style={{ top:'50px' }}>⚙</button>
+      <SettingsPanel open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+    </>
+  );
 }
 
 function App() {
