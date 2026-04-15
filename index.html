@@ -235,6 +235,7 @@ const BOOK_CARDS = [...NAVAL_CARDS, ...ELON_CARDS, ...YOUTUBE_CARDS];
 const TODAY_CARDS = [...NEWS_CARDS, ...SOCIAL_CARDS, ...FINANCE_CARDS, ...SPORTS_CARDS, ...DESIGN_CARDS, ...FOOD_CARDS, ...TECH_CARDS];
 const TABS = ["Today", "Bookshelf"];
 const TODAY_SUBS = ["全部", "世界新聞", "社交雷達", "財經", "運動", "設計", "餐飲", "科技"];
+const BOOK_SUBS = ["全部", "Dan Koe", "Naval", "Naval Pod", "Elon", "Huberman", "Williamson"];
 
 function shuffle(arr) {
   const a = [...arr];
@@ -483,6 +484,7 @@ function ThemeToggle() {
 function App() {
   const [activeTab, setActiveTab] = useState("Today");
   const [todaySub, setTodaySub] = useState("全部");
+  const [bookSub, setBookSub] = useState("全部");
   const [bookSeed, setBookSeed] = useState(0);
   const [idx, setIdx] = useState(0);
   const [dir, setDir] = useState(0); // -1=left, 1=right, 0=none
@@ -490,7 +492,10 @@ function App() {
 
   const shuffledBooks = useMemo(() => shuffle(BOOK_CARDS).slice(0, 8), [bookSeed]);
   const cards = useMemo(() => {
-    if (activeTab === "Bookshelf") return shuffledBooks;
+    if (activeTab === "Bookshelf") {
+      if (bookSub !== "全部") return BOOK_CARDS.filter(c => c.channel === bookSub);
+      return shuffledBooks;
+    }
     if (todaySub === "世界新聞") return NEWS_CARDS;
     if (todaySub === "社交雷達") return SOCIAL_CARDS;
     if (todaySub === "財經") return FINANCE_CARDS;
@@ -499,17 +504,21 @@ function App() {
     if (todaySub === "餐飲") return FOOD_CARDS;
     if (todaySub === "科技") return TECH_CARDS;
     return TODAY_CARDS;
-  }, [activeTab, todaySub, shuffledBooks]);
+  }, [activeTab, todaySub, bookSub, shuffledBooks]);
 
   const total = cards.length;
   const atEnd = idx >= total;
 
   const [resumeMsg, setResumeMsg] = useState(null);
-  const lsKey = "mosfeed_" + activeTab + "_" + todaySub;
+  const lsKey = activeTab === "Bookshelf"
+    ? "mosfeed_Bookshelf_" + bookSub
+    : "mosfeed_" + activeTab + "_" + todaySub;
 
   // Read localStorage on tab/sub change
   React.useEffect(() => {
-    const key = "mosfeed_" + activeTab + "_" + todaySub;
+    const key = activeTab === "Bookshelf"
+      ? "mosfeed_Bookshelf_" + bookSub
+      : "mosfeed_" + activeTab + "_" + todaySub;
     try {
       const saved = parseInt(localStorage.getItem(key), 10);
       if (saved > 0 && saved < cards.length) {
@@ -520,11 +529,11 @@ function App() {
       }
     } catch(e) {}
     setIdx(0); setDir(0);
-  }, [activeTab, todaySub]);
+  }, [activeTab, todaySub, bookSub]);
 
   // Reset on shuffle
   React.useEffect(() => {
-    if (bookSeed > 0) { setIdx(0); setDir(0); try { localStorage.removeItem("mosfeed_Bookshelf_全部"); } catch(e) {} }
+    if (bookSeed > 0) { setIdx(0); setDir(0); try { localStorage.removeItem("mosfeed_Bookshelf_" + bookSub); } catch(e) {} }
   }, [bookSeed]);
 
   const go = (newIdx) => {
@@ -558,7 +567,7 @@ function App() {
     touchRef.current = null;
   };
 
-  const headerHeight = activeTab === "Today" ? "200px" : "170px";
+  const headerHeight = "200px";
 
   return (
     <div style={{ maxWidth:"680px", margin:"0 auto", height:"100vh", overflow:"hidden", display:"flex", flexDirection:"column" }}>
@@ -577,7 +586,7 @@ function App() {
             {TABS.map(tab => {
               const isActive = activeTab === tab;
               return (
-                <button key={tab} onClick={() => { setActiveTab(tab); if (tab !== "Today") setTodaySub("全部"); }}
+                <button key={tab} onClick={() => { setActiveTab(tab); setTodaySub("全部"); setBookSub("全部"); }}
                   style={{ fontSize:isActive?"26px":"15px", fontWeight:isActive?600:400, fontStyle:isActive?"normal":"italic", color:isActive?"var(--text)":"var(--text-tertiary)", letterSpacing:isActive?"-0.01em":"0" }}>
                   {tab}
                 </button>
@@ -586,10 +595,20 @@ function App() {
           </div>
         </div>
         {activeTab === "Today" && (
-          <div style={{ display:"flex", gap:"20px", padding:"14px 32px 0" }}>
+          <div style={{ display:"flex", gap:"20px", padding:"14px 32px 0", overflowX:"auto" }}>
             {TODAY_SUBS.map(sub => (
               <button key={sub} className="sub-pill" onClick={() => setTodaySub(sub)}
                 style={{ color:todaySub===sub?"var(--text-secondary)":"var(--text-tertiary)", borderBottomColor:todaySub===sub?"var(--text-secondary)":"transparent", opacity:todaySub===sub?1:0.6 }}>
+                {sub}
+              </button>
+            ))}
+          </div>
+        )}
+        {activeTab === "Bookshelf" && (
+          <div style={{ display:"flex", gap:"20px", padding:"14px 32px 0", overflowX:"auto" }}>
+            {BOOK_SUBS.map(sub => (
+              <button key={sub} className="sub-pill" onClick={() => { setBookSub(sub); setIdx(0); }}
+                style={{ color:bookSub===sub?"var(--text-secondary)":"var(--text-tertiary)", borderBottomColor:bookSub===sub?"var(--text-secondary)":"transparent", opacity:bookSub===sub?1:0.6 }}>
                 {sub}
               </button>
             ))}
@@ -623,7 +642,7 @@ function App() {
             <EndScreen
               onPrev={() => go(total - 1)}
               onShuffle={() => setBookSeed(s => s + 1)}
-              isBookshelf={activeTab === "Bookshelf"}
+              isBookshelf={activeTab === "Bookshelf" && bookSub === "全部"}
             />
           </div>
         ) : (
