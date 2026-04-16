@@ -235,7 +235,7 @@ const BOOK_CARDS = [...NAVAL_CARDS, ...ELON_CARDS, ...YOUTUBE_CARDS];
 const TODAY_CARDS = [...NEWS_CARDS, ...SOCIAL_CARDS, ...FINANCE_CARDS, ...SPORTS_CARDS, ...DESIGN_CARDS, ...FOOD_CARDS, ...TECH_CARDS];
 const TABS = ["Today", "Bookshelf"];
 const TODAY_SUBS = ["全部", "世界新聞", "社交雷達", "財經", "運動", "設計", "餐飲", "科技"];
-const BOOK_SUBS = ["全部", "Dan Koe", "Naval", "Naval Podcast", "Elon", "Huberman Lab", "Chris Williamson", "Jay Shetty"];
+const BOOK_SUBS = ["Dan Koe", "Naval", "Naval Podcast", "Elon", "Huberman Lab", "Chris Williamson", "Jay Shetty"];
 
 function shuffle(arr) {
   const a = [...arr];
@@ -416,14 +416,13 @@ function CardView({ card, idx, total }) {
   );
 }
 
-function EndScreen({ onPrev, onShuffle, onMore, hasMore, isBookshelf }) {
+function EndScreen({ onPrev, onShuffle, isBookshelf }) {
   return (
     <div className="end-screen">
       <p style={{ fontFamily:"'Courier New',monospace", fontSize:"11px", letterSpacing:"0.14em", color:"var(--text-tertiary)", textTransform:"uppercase" }}>end of feed</p>
-      <div style={{ display:"flex", gap:"12px", flexWrap:"wrap", justifyContent:"center" }}>
+      <div style={{ display:"flex", gap:"12px" }}>
         <button className="end-btn" onClick={onPrev}>← Prev</button>
-        {isBookshelf && hasMore && <button className="end-btn" onClick={onMore}>↓ 再兩篇</button>}
-        {isBookshelf && <button className="end-btn" onClick={onShuffle}>↻ Shuffle</button>}
+        {isBookshelf && <button className="end-btn" onClick={onShuffle}>↻ 換兩篇</button>}
       </div>
     </div>
   );
@@ -504,18 +503,17 @@ function ThemeToggle() {
 function App() {
   const [activeTab, setActiveTab] = useState("Today");
   const [todaySub, setTodaySub] = useState("全部");
-  const [bookSub, setBookSub] = useState("全部");
+  const [bookSub, setBookSub] = useState("Dan Koe");
   const [bookSeed, setBookSeed] = useState(() => getTodaySeed());
-  const [bookLimit, setBookLimit] = useState(2);
   const [idx, setIdx] = useState(0);
   const [dir, setDir] = useState(0); // -1=left, 1=right, 0=none
   const touchRef = React.useRef(null);
 
-  const shuffledBooks = useMemo(() => seededShuffle(BOOK_CARDS, bookSeed), [bookSeed]);
   const cards = useMemo(() => {
     if (activeTab === "Bookshelf") {
-      if (bookSub !== "全部") return BOOK_CARDS.filter(c => c.channel === bookSub);
-      return shuffledBooks.slice(0, bookLimit);
+      const channelCards = BOOK_CARDS.filter(c => c.channel === bookSub);
+      const channelHash = bookSub.split('').reduce((a, c) => (a * 31 + c.charCodeAt(0)) | 0, 0);
+      return seededShuffle(channelCards, (bookSeed ^ channelHash) >>> 0).slice(0, 2);
     }
     if (todaySub === "世界新聞") return NEWS_CARDS;
     if (todaySub === "社交雷達") return SOCIAL_CARDS;
@@ -554,7 +552,7 @@ function App() {
 
   // Reset on shuffle
   React.useEffect(() => {
-    if (bookSeed !== getTodaySeed()) { setIdx(0); setDir(0); setBookLimit(2); try { localStorage.removeItem("mosfeed_Bookshelf_" + bookSub); } catch(e) {} }
+    if (bookSeed !== getTodaySeed()) { setIdx(0); setDir(0); try { localStorage.removeItem("mosfeed_Bookshelf_" + bookSub); } catch(e) {} }
   }, [bookSeed]);
 
   const go = (newIdx) => {
@@ -598,7 +596,7 @@ function App() {
         <div style={{ padding:"0 32px", marginBottom:"16px" }}>
           <div style={{ marginBottom:"4px" }}>
             <h1 className="masthead-title" style={{ fontSize:"32px" }}>Mo's Feed</h1>
-            <span className="running-header" style={{ display:"block", marginTop:"4px" }}>{getDateString()} <span style={{ opacity:0.5 }}>v2.10</span></span>
+            <span className="running-header" style={{ display:"block", marginTop:"4px" }}>{getDateString()} <span style={{ opacity:0.5 }}>v2.11</span></span>
           </div>
           <div className="rule" />
         </div>
@@ -607,7 +605,7 @@ function App() {
             {TABS.map(tab => {
               const isActive = activeTab === tab;
               return (
-                <button key={tab} onClick={() => { setActiveTab(tab); setTodaySub("全部"); setBookSub("全部"); }}
+                <button key={tab} onClick={() => { setActiveTab(tab); setTodaySub("全部"); setBookSub("Dan Koe"); }}
                   style={{ fontSize:isActive?"26px":"15px", fontWeight:isActive?600:400, fontStyle:isActive?"normal":"italic", color:isActive?"var(--text)":"var(--text-tertiary)", letterSpacing:isActive?"-0.01em":"0" }}>
                   {tab}
                 </button>
@@ -662,10 +660,8 @@ function App() {
           <div className="card-slide" style={{ position:"relative", transform:"none" }}>
             <EndScreen
               onPrev={() => go(total - 1)}
-              onShuffle={() => { setBookSeed(Date.now()); }}
-              onMore={() => { const next = bookLimit; setBookLimit(l => l + 2); setIdx(next); }}
-              hasMore={bookLimit < BOOK_CARDS.length}
-              isBookshelf={activeTab === "Bookshelf" && bookSub === "全部"}
+              onShuffle={() => setBookSeed(Date.now())}
+              isBookshelf={activeTab === "Bookshelf"}
             />
           </div>
         ) : (
