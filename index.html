@@ -246,6 +246,25 @@ function shuffle(arr) {
   return a;
 }
 
+function getTodaySeed() {
+  const d = new Date();
+  return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
+}
+
+function seededShuffle(arr, seed) {
+  const a = [...arr];
+  let s = seed >>> 0;
+  const rand = () => {
+    s ^= s << 13; s ^= s >>> 17; s ^= s << 5;
+    return (s >>> 0) / 4294967296;
+  };
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(rand() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
 function getDateString() {
   return new Date().toLocaleDateString("en-US", { month:"short", day:"numeric", year:"numeric" }).toUpperCase();
 }
@@ -397,12 +416,13 @@ function CardView({ card, idx, total }) {
   );
 }
 
-function EndScreen({ onPrev, onShuffle, isBookshelf }) {
+function EndScreen({ onPrev, onShuffle, onMore, hasMore, isBookshelf }) {
   return (
     <div className="end-screen">
       <p style={{ fontFamily:"'Courier New',monospace", fontSize:"11px", letterSpacing:"0.14em", color:"var(--text-tertiary)", textTransform:"uppercase" }}>end of feed</p>
-      <div style={{ display:"flex", gap:"12px" }}>
+      <div style={{ display:"flex", gap:"12px", flexWrap:"wrap", justifyContent:"center" }}>
         <button className="end-btn" onClick={onPrev}>← Prev</button>
+        {isBookshelf && hasMore && <button className="end-btn" onClick={onMore}>↓ 再兩篇</button>}
         {isBookshelf && <button className="end-btn" onClick={onShuffle}>↻ Shuffle</button>}
       </div>
     </div>
@@ -485,16 +505,17 @@ function App() {
   const [activeTab, setActiveTab] = useState("Today");
   const [todaySub, setTodaySub] = useState("全部");
   const [bookSub, setBookSub] = useState("全部");
-  const [bookSeed, setBookSeed] = useState(0);
+  const [bookSeed, setBookSeed] = useState(() => getTodaySeed());
+  const [bookLimit, setBookLimit] = useState(2);
   const [idx, setIdx] = useState(0);
   const [dir, setDir] = useState(0); // -1=left, 1=right, 0=none
   const touchRef = React.useRef(null);
 
-  const shuffledBooks = useMemo(() => shuffle(BOOK_CARDS).slice(0, 8), [bookSeed]);
+  const shuffledBooks = useMemo(() => seededShuffle(BOOK_CARDS, bookSeed), [bookSeed]);
   const cards = useMemo(() => {
     if (activeTab === "Bookshelf") {
       if (bookSub !== "全部") return BOOK_CARDS.filter(c => c.channel === bookSub);
-      return shuffledBooks;
+      return shuffledBooks.slice(0, bookLimit);
     }
     if (todaySub === "世界新聞") return NEWS_CARDS;
     if (todaySub === "社交雷達") return SOCIAL_CARDS;
@@ -533,7 +554,7 @@ function App() {
 
   // Reset on shuffle
   React.useEffect(() => {
-    if (bookSeed > 0) { setIdx(0); setDir(0); try { localStorage.removeItem("mosfeed_Bookshelf_" + bookSub); } catch(e) {} }
+    if (bookSeed !== getTodaySeed()) { setIdx(0); setDir(0); setBookLimit(2); try { localStorage.removeItem("mosfeed_Bookshelf_" + bookSub); } catch(e) {} }
   }, [bookSeed]);
 
   const go = (newIdx) => {
@@ -577,7 +598,7 @@ function App() {
         <div style={{ padding:"0 32px", marginBottom:"16px" }}>
           <div style={{ marginBottom:"4px" }}>
             <h1 className="masthead-title" style={{ fontSize:"32px" }}>Mo's Feed</h1>
-            <span className="running-header" style={{ display:"block", marginTop:"4px" }}>{getDateString()} <span style={{ opacity:0.5 }}>v2.9</span></span>
+            <span className="running-header" style={{ display:"block", marginTop:"4px" }}>{getDateString()} <span style={{ opacity:0.5 }}>v2.10</span></span>
           </div>
           <div className="rule" />
         </div>
@@ -641,7 +662,9 @@ function App() {
           <div className="card-slide" style={{ position:"relative", transform:"none" }}>
             <EndScreen
               onPrev={() => go(total - 1)}
-              onShuffle={() => setBookSeed(s => s + 1)}
+              onShuffle={() => { setBookSeed(Date.now()); }}
+              onMore={() => { const next = bookLimit; setBookLimit(l => l + 2); setIdx(next); }}
+              hasMore={bookLimit < BOOK_CARDS.length}
               isBookshelf={activeTab === "Bookshelf" && bookSub === "全部"}
             />
           </div>
