@@ -13,14 +13,14 @@
   * { box-sizing: border-box; margin: 0; padding: 0; }
   :root {
     --bg: #f5f1ea; --bg-elevated: #ede9e1;
-    --text: #1c1a17; --text-secondary: #8a8680;
-    --text-tertiary: #b8b4ae; --divider: #ddd9d1;
+    --text: #1c1a17; --text-secondary: #5e5b56;
+    --text-tertiary: #8a8680; --divider: #ddd9d1;
     --noise-opacity: 0.035;
   }
   [data-theme="dark"] {
     --bg: #0f0e0c; --bg-elevated: #161410;
-    --text: #e8e4dc; --text-secondary: #5a5650;
-    --text-tertiary: #383430; --divider: #242018;
+    --text: #e8e4dc; --text-secondary: #9a9691;
+    --text-tertiary: #6a6663; --divider: #2e2a24;
     --noise-opacity: 0.06;
   }
   body {
@@ -75,6 +75,12 @@
   [data-theme="dark"] .word-popup { box-shadow: 0 4px 20px rgba(0,0,0,0.4); }
   .az-input { width:100%; background:var(--bg); border:1px solid var(--divider); color:var(--text); padding:7px 10px; font-family:'Courier New',monospace; font-size:11px; outline:none; -webkit-appearance:none; appearance:none; border-radius:0; }
   .az-input:focus { border-color:var(--text-secondary); }
+  .nav-bar { position:fixed; bottom:0; left:50%; transform:translateX(-50%); width:100%; max-width:680px; display:flex; justify-content:space-between; align-items:center; padding:10px 24px 14px; background:var(--bg); border-top:1px solid var(--divider); z-index:50; }
+  .nav-btn { background:none; border:1px solid var(--divider); color:var(--text-secondary); font-family:'Courier New',monospace; font-size:16px; cursor:pointer; padding:10px 22px; transition:all 0.2s ease; -webkit-tap-highlight-color:transparent; line-height:1; }
+  .nav-btn:hover { border-color:var(--text-secondary); color:var(--text); }
+  .nav-btn:active { background:var(--bg-elevated); }
+  .nav-btn:disabled { opacity:0.25; cursor:default; border-color:var(--divider); color:var(--text-tertiary); }
+  .nav-count { font-family:'Courier New',monospace; font-size:10px; letter-spacing:0.14em; color:var(--text-tertiary); text-transform:uppercase; }
 </style>
 </head>
 <body data-theme="light">
@@ -394,11 +400,11 @@ function CardView({ card, idx, total }) {
         <span style={{ fontFamily:"'Courier New',monospace", fontSize:"9px", letterSpacing:"0.18em", textTransform:"uppercase", color:"var(--text-tertiary)" }}>{card.tag}</span>
         <button className={"speak-btn" + (speaking ? " active" : "")} onPointerDown={e => e.stopPropagation()} onClick={speakAll} title={speaking ? "停止朗讀" : "朗讀全文"} style={{ marginLeft:"auto" }}>{speaking ? "■" : "🔊"}</button>
       </div>
-      <p style={{ fontFamily:"Georgia,'Times New Roman',serif", fontSize:"18px", lineHeight:1.7, color:"var(--text)", margin:0, maxWidth:"54ch", letterSpacing:"-0.01em" }}>{words}</p>
+      <p style={{ fontFamily:"Georgia,'Times New Roman',serif", fontSize:"20px", lineHeight:1.75, color:"var(--text)", margin:0, maxWidth:"52ch", letterSpacing:"-0.01em" }}>{words}</p>
       <WordPopup popup={popup} onSpeak={speakWord} />
       <div style={{ overflow:"hidden", maxHeight:isOpen?"500px":"0px", transition:"max-height 0.45s cubic-bezier(0.4,0,0.2,1)" }}>
         <div style={{ marginTop:"16px", paddingTop:"14px", borderTop:"1px solid var(--divider)" }}>
-          <p style={{ fontFamily:"system-ui,-apple-system,'PingFang TC','Hiragino Sans',sans-serif", fontSize:"14px", lineHeight:1.85, color:"var(--text-secondary)", margin:0, maxWidth:"48ch", fontWeight:300 }}>{text}</p>
+          <p style={{ fontFamily:"system-ui,-apple-system,'PingFang TC','Hiragino Sans',sans-serif", fontSize:"15px", lineHeight:1.9, color:"var(--text-secondary)", margin:0, maxWidth:"46ch", fontWeight:300 }}>{text}</p>
         </div>
       </div>
       <div className="expand-row" style={{ marginTop:"14px" }}>
@@ -594,7 +600,7 @@ function App() {
         <div style={{ padding:"0 32px", marginBottom:"16px" }}>
           <div style={{ marginBottom:"4px" }}>
             <h1 className="masthead-title" style={{ fontSize:"32px" }}>Mo's Feed</h1>
-            <span className="running-header" style={{ display:"block", marginTop:"4px" }}>{getDateString()} <span style={{ opacity:0.5 }}>v2.19</span></span>
+            <span className="running-header" style={{ display:"block", marginTop:"4px" }}>{getDateString()} <span style={{ opacity:0.5 }}>v2.20</span></span>
           </div>
           <div className="rule" />
         </div>
@@ -642,17 +648,6 @@ function App() {
       {/* Swipe area */}
       <div className="swipe-area" style={{ flex:1 }}
         onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}
-        onPointerDown={(e) => { e.currentTarget.dataset.px = e.clientX; e.currentTarget.dataset.py = e.clientY; }}
-        onPointerUp={(e) => {
-          const sx = parseFloat(e.currentTarget.dataset.px), sy = parseFloat(e.currentTarget.dataset.py);
-          const dx = e.clientX - sx, dy = e.clientY - sy;
-          if (Math.sqrt(dx*dx+dy*dy) < 10) {
-            const rect = e.currentTarget.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            if (x < rect.width * 0.25) go(idx - 1);
-            else if (x > rect.width * 0.75) go(idx + 1);
-          }
-        }}
       >
         {atEnd ? (
           <div className="card-slide" style={{ position:"relative", transform:"none" }}>
@@ -667,6 +662,13 @@ function App() {
             <CardView card={cards[idx]} idx={idx} total={total} />
           </div>
         )}
+      </div>
+
+      {/* Nav bar */}
+      <div className="nav-bar">
+        <button className="nav-btn" onClick={() => go(idx - 1)} disabled={idx === 0}>←</button>
+        <span className="nav-count">{atEnd ? `${total}/${total}` : `${idx + 1} / ${total}`}</span>
+        <button className="nav-btn" onClick={() => go(idx + 1)} disabled={atEnd}>→</button>
       </div>
     </div>
   );
