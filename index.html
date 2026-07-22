@@ -192,7 +192,6 @@ function CardView({ card, idx, total }) {
   const audioRef = React.useRef(null);
   const toggle = (target) => setLang(lang === target ? null : target);
   const isOpen = lang !== null;
-  const text = lang === "ja" ? (card.ja || card.zh) : card.zh;
 
   const speakWord = React.useCallback(async (word) => {
     const ok = await azureSpeak(word, { rate:'-15%' });
@@ -294,15 +293,17 @@ function CardView({ card, idx, total }) {
         <span style={{ fontFamily:"'Courier New',monospace", fontSize:"9px", letterSpacing:"0.18em", textTransform:"uppercase", color:"var(--text-tertiary)" }}>{card.tag}</span>
         <button className={"speak-btn" + (speaking ? " active" : "")} onPointerDown={e => e.stopPropagation()} onClick={speakAll} title={speaking ? "停止朗讀" : "朗讀全文"} style={{ marginLeft:"auto" }}>{speaking ? "■" : "🔊"}</button>
       </div>
-      <p style={{ fontFamily:"Georgia,'Times New Roman',serif", fontSize:"20px", lineHeight:1.75, color:"var(--text)", margin:0, maxWidth:"52ch", letterSpacing:"-0.01em" }}>{words}</p>
+      <p style={{ fontFamily:"system-ui,-apple-system,'PingFang TC','Hiragino Sans',sans-serif", fontSize:"19px", lineHeight:1.9, color:"var(--text)", margin:0, maxWidth:"36ch", fontWeight:400, letterSpacing:"0.01em" }}>{card.zh}</p>
       <WordPopup popup={popup} onSpeak={speakWord} />
       <div style={{ overflow:"hidden", maxHeight:isOpen?"500px":"0px", transition:"max-height 0.45s cubic-bezier(0.4,0,0.2,1)" }}>
         <div style={{ marginTop:"16px", paddingTop:"14px", borderTop:"1px solid var(--divider)" }}>
-          <p style={{ fontFamily:"system-ui,-apple-system,'PingFang TC','Hiragino Sans',sans-serif", fontSize:"15px", lineHeight:1.9, color:"var(--text-secondary)", margin:0, maxWidth:"46ch", fontWeight:300 }}>{text}</p>
+          {lang === "ja"
+            ? <p style={{ fontFamily:"system-ui,-apple-system,'PingFang TC','Hiragino Sans',sans-serif", fontSize:"15px", lineHeight:1.9, color:"var(--text-secondary)", margin:0, maxWidth:"46ch", fontWeight:300 }}>{card.ja || card.en}</p>
+            : <p style={{ fontFamily:"Georgia,'Times New Roman',serif", fontSize:"16px", lineHeight:1.8, color:"var(--text-secondary)", margin:0, maxWidth:"52ch", letterSpacing:"-0.01em" }}>{words}</p>}
         </div>
       </div>
       <div className="expand-row" style={{ marginTop:"14px" }}>
-        <span onPointerDown={e => e.stopPropagation()} onClick={e => { e.stopPropagation(); toggle("zh"); }} style={{ fontFamily:"'Courier New',monospace", fontSize:"9px", letterSpacing:"0.14em", textTransform:"uppercase", color: lang==="zh" ? "var(--text-secondary)" : "var(--text-tertiary)", cursor:"pointer" }}>{lang==="zh" ? "close ↑" : "中文 ↓"}</span>
+        <span onPointerDown={e => e.stopPropagation()} onClick={e => { e.stopPropagation(); toggle("en"); }} style={{ fontFamily:"'Courier New',monospace", fontSize:"9px", letterSpacing:"0.14em", textTransform:"uppercase", color: lang==="en" ? "var(--text-secondary)" : "var(--text-tertiary)", cursor:"pointer" }}>{lang==="en" ? "close ↑" : "English ↓"}</span>
         <span onPointerDown={e => e.stopPropagation()} onClick={e => { e.stopPropagation(); toggle("ja"); }} style={{ fontFamily:"'Courier New',monospace", fontSize:"9px", letterSpacing:"0.14em", textTransform:"uppercase", color: lang==="ja" ? "var(--text-secondary)" : "var(--text-tertiary)", cursor:"pointer" }}>{lang==="ja" ? "close ↑" : "日本語 ↓"}</span>
         {card.url && (<a href={card.url} target="_blank" rel="noopener noreferrer" onPointerDown={e => e.stopPropagation()} onClick={e => e.stopPropagation()} className="source-link">source ↗</a>)}
       </div>
@@ -489,7 +490,7 @@ function App() {
         <div style={{ padding:"0 32px", marginBottom:"16px" }}>
           <div style={{ marginBottom:"4px" }}>
             <h1 className="masthead-title" style={{ fontSize:"32px" }}>Mo's Feed</h1>
-            <span className="running-header" style={{ display:"block", marginTop:"4px" }}><span style={{ opacity:0.85 }}>updated 07/22/2026</span><span style={{ opacity:0.75, marginLeft:"10px" }}>v4.0</span></span>
+            <span className="running-header" style={{ display:"block", marginTop:"4px" }}><span style={{ opacity:0.85 }}>updated 07/22/2026</span><span style={{ opacity:0.75, marginLeft:"10px" }}>v4.1</span></span>
           </div>
           <div className="rule" />
         </div>
