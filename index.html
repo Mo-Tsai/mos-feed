@@ -171,7 +171,8 @@ const CARDS = [
     { "id": "eval_0", "channel": "今日評估", "tag": "今日提問", "color": "#E8A838", "stocks": [ { "t": "MSFT", "n": "Azure 兌現獲獎勵" }, { "t": "META", "n": "資本支出未兌現被懲罰" }, { "t": "AAPL", "n": "超標但指引失望" }, { "t": "AMZN", "n": "AWS 支出開始回收" } ], "status": "DISCUSS · 讀完到最後一頁，複製 PROMPT 找 CLAUDE 復盤", "en": "Today's tape told one story twice. Microsoft and Amazon got paid for capex that's converting into cloud revenue; Meta and Apple got punished — one for spending without visible return, the other for guiding soft. The market has quietly changed its scorecard: it no longer rewards AI spend, it rewards AI spend that shows up in the P&L. The question to sit with: when 'more capex' flips from bullish to bearish, which of today's leaders is next to be re-rated?", "zh": "今天的盤面把同一個故事講了兩遍。微軟與亞馬遜因為資本支出正在轉化成雲端營收而被獎勵；Meta 與蘋果被懲罰——一個是花錢但看不到回報，一個是指引疲弱。市場悄悄換了計分表：它不再獎勵 AI 支出，而是獎勵『出現在損益表上』的 AI 支出。值得靜下來想的問題：當『增加資本支出』從利多翻成利空，今天的領頭羊裡，下一個被重新評價的是誰？", "ja": "今日の相場は同じ物語を二度語った。マイクロソフトとアマゾンは、クラウド収入に変わりつつある設備投資で報われた。一方Metaとアップルは罰せられた——前者は目に見えるリターンなき支出で、後者は弱い見通しで。市場は静かに採点表を変えた：もはやAI支出そのものを報いず、損益計算書に表れるAI支出を報いる。座って考えるべき問い：『設備投資増』が強気から弱気へ反転するとき、今日の主役の次に再評価されるのは誰か？", "url": "https://fortune.com/2026/07/26/big-tech-earnings-meta-microsoft-apple-amazon-market-revolt-ai-spending/" }
   ];
 
-const TODAY_SUBS = ["全部", ...CHANNELS.map(c => c.key)];
+// 「資金流向」是特殊分頁:嵌 TradingView 即時熱力圖,不吃 CARDS、每日排程不用動它
+const TODAY_SUBS = ["全部", ...CHANNELS.map(c => c.key), "資金流向"];
 
 // ===== 討論 prompt(每日排程同步更新) =====
 const DISCUSS_PROMPT = "我剛讀完 2026-07-31 的 Mo's Feed 財經晨報(20 卡版)。今天重點:(1) 週四美股強勢反攻,道瓊+1.2%、S&P+1.7%、那斯達克+2.8%,終結六連跌,微軟寫下單日市值增幅紀錄;(2) 雲端財報定生死——微軟 Azure 固定匯率+43%、亞馬遜盤後+8% 被獎勵,Meta 因資本支出上調到 1300-1450 億、自由現金流暴跌被砍約 10%,蘋果超標卻因服務收入不足＋供應限制指引盤後挫約 8%;(3) Fed 維持 3.50-3.75%,九比三分裂、三票主張升息,Warsh 不給點陣圖,債市質疑其可信度;(4) 核心 PCE 升到 3.4%、初領失業金 18.7 萬創近 60 年低——通膨與就業雙熱,降息最難;(5) 大輪動延續,Russell 2000 年內+22%、1991 來最強上半年,資金擴散到小型股/醫療/金融/工業;(6) 忽視雷達鎖定 Via(VIA)、Hudson(HDSN)、Centerspace(CSR)、Energy Recovery(ERII)——內部人買進＋被低估的研究線索。請跟我討論:今天哪一條最值得追?雷達池的論點站得住嗎?雷達池在 Notion:https://app.notion.com/p/6ae9be8507e24aaf85a9a8af4b69fcf0";
@@ -441,6 +442,48 @@ function ThemeToggle() {
   );
 }
 
+// ===== 資金流向(TradingView 官方嵌入元件,即時資料,每日排程不需更新) =====
+function HeatmapView() {
+  const ref = React.useRef(null);
+  React.useEffect(() => {
+    const container = ref.current;
+    if (!container) return;
+    const build = () => {
+      const dark = document.body.getAttribute("data-theme") === "dark";
+      container.innerHTML = "";
+      const inner = document.createElement("div");
+      inner.className = "tradingview-widget-container__widget";
+      inner.style.height = "100%";
+      const script = document.createElement("script");
+      script.src = "https://s3.tradingview.com/external-embedding/embed-widget-stock-heatmap.js";
+      script.async = true;
+      script.innerHTML = JSON.stringify({
+        dataSource: "SPX500", grouping: "sector",
+        blockSize: "market_cap_basic", blockColor: "change",
+        locale: "zh_TW", colorTheme: dark ? "dark" : "light",
+        hasTopBar: false, isDataSetEnabled: false, isZoomEnabled: true,
+        hasSymbolTooltip: true, isMonoSize: false,
+        width: "100%", height: "100%"
+      });
+      container.appendChild(inner);
+      container.appendChild(script);
+    };
+    build();
+    const obs = new MutationObserver(build);
+    obs.observe(document.body, { attributes: true, attributeFilter: ["data-theme"] });
+    return () => { obs.disconnect(); container.innerHTML = ""; };
+  }, []);
+  return (
+    <div style={{ height:"100%", display:"flex", flexDirection:"column", padding:"12px 16px 16px" }}>
+      <div style={{ display:"flex", alignItems:"baseline", justifyContent:"space-between", padding:"0 16px 10px" }}>
+        <span style={{ fontFamily:"'Courier New',monospace", fontSize:"9px", letterSpacing:"0.18em", textTransform:"uppercase", color:"var(--text-tertiary)" }}>S&P 500 · 即時資金流向</span>
+        <a href="https://finviz.com/map?t=sec&st=d1" target="_blank" rel="noopener noreferrer" className="source-link">Finviz 完整版 ↗</a>
+      </div>
+      <div className="tradingview-widget-container" ref={ref} style={{ flex:1, minHeight:0 }} />
+    </div>
+  );
+}
+
 function App() {
   const [todaySub, setTodaySub] = useState("全部");
   const [idx, setIdx] = useState(0);
@@ -454,6 +497,7 @@ function App() {
 
   const total = cards.length;
   const atEnd = idx >= total;
+  const isFlow = todaySub === "資金流向";
 
   const [resumeMsg, setResumeMsg] = useState(null);
   const lsKey = "mosfeed_Today_" + todaySub;
@@ -514,7 +558,7 @@ function App() {
         <div style={{ padding:"0 32px", marginBottom:"16px" }}>
           <div style={{ marginBottom:"4px" }}>
             <h1 className="masthead-title" style={{ fontSize:"32px" }}>Mo's Feed</h1>
-            <span className="running-header" style={{ display:"block", marginTop:"4px" }}><span style={{ opacity:0.85 }}>updated 07/31/2026</span><span style={{ opacity:0.75, marginLeft:"10px" }}>v5.3</span></span>
+            <span className="running-header" style={{ display:"block", marginTop:"4px" }}><span style={{ opacity:0.85 }}>updated 07/31/2026</span><span style={{ opacity:0.75, marginLeft:"10px" }}>v5.4</span></span>
           </div>
           <div className="rule" />
         </div>
@@ -541,9 +585,11 @@ function App() {
 
       {/* Swipe area */}
       <div className="swipe-area" style={{ flex:1 }}
-        onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}
+        onTouchStart={isFlow ? undefined : onTouchStart} onTouchEnd={isFlow ? undefined : onTouchEnd}
       >
-        {atEnd ? (
+        {isFlow ? (
+          <HeatmapView />
+        ) : atEnd ? (
           <div className="card-slide" style={{ position:"relative", transform:"none" }}>
             <EndScreen onPrev={() => go(total - 1)} />
           </div>
@@ -556,9 +602,9 @@ function App() {
 
       {/* Nav bar */}
       <div className="nav-bar">
-        <button className="nav-btn" onClick={() => go(idx - 1)} disabled={idx === 0}>←</button>
-        <span className="nav-count">{atEnd ? `${total}/${total}` : `${idx + 1} / ${total}`}</span>
-        <button className="nav-btn" onClick={() => go(idx + 1)} disabled={atEnd}>→</button>
+        <button className="nav-btn" onClick={() => go(idx - 1)} disabled={isFlow || idx === 0}>←</button>
+        <span className="nav-count">{isFlow ? "live · tradingview" : atEnd ? `${total}/${total}` : `${idx + 1} / ${total}`}</span>
+        <button className="nav-btn" onClick={() => go(idx + 1)} disabled={isFlow || atEnd}>→</button>
       </div>
     </div>
   );
