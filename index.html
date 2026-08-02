@@ -97,13 +97,48 @@ const { useState, useMemo } = React;
 let _azToken = null, _azTokenExp = 0, _azAbort = null, _azAudio = null;
 // 每個語系一組預設嗓音 + localStorage key,朗讀時依當下顯示語言自動挑選
 const VOICE_CONF = {
-  zh: { locale:'zh-TW', lsKey:'mf_azureVoice_zh', fallback:'zh-TW-HsiaoChenNeural',
+  zh: { locale:'zh-TW', lsKey:'mf_azureVoice_zh', fallback:'zh-TW-HsiaoChenNeural', styleKey:'mf_azureStyle_zh',
         sysVoices:["Microsoft HsiaoChen Online (Natural) - Chinese (Taiwan)","Google 國語（臺灣）","Meijia","Tingting","Google 普通话（中国大陆）"] },
-  en: { locale:'en-US', lsKey:'mf_azureVoice',    fallback:'en-US-AriaNeural',
+  en: { locale:'en-US', lsKey:'mf_azureVoice',    fallback:'en-US-AriaNeural',       styleKey:'mf_azureStyle_en',
         sysVoices:["Google US English","Microsoft Aria Online (Natural) - English (United States)","Microsoft Guy Online (Natural) - English (United States)","Samantha","Alex"] },
-  ja: { locale:'ja-JP', lsKey:'mf_azureVoice_ja', fallback:'ja-JP-NanamiNeural',
+  ja: { locale:'ja-JP', lsKey:'mf_azureVoice_ja', fallback:'ja-JP-NanamiNeural',     styleKey:'mf_azureStyle_ja',
         sysVoices:["Microsoft Nanami Online (Natural) - Japanese (Japan)","Google 日本語","Kyoko","O-ren"] },
 };
+// 支援 express-as 語氣的嗓音(台灣腔 zh-TW 系列不支援,設了也會被忽略)
+const STYLE_VOICES = new Set(['zh-CN-XiaoxiaoNeural','zh-CN-YunyangNeural','zh-CN-YunxiNeural','zh-CN-YunjianNeural',
+  'en-US-AriaNeural','en-US-JennyNeural','en-US-GuyNeural','en-US-DavisNeural','en-US-TonyNeural']);
+
+// 中文縮寫/符號的唸法對照。TTS 把 "Fed"「3.50-3.75%」「8/3」直接吐出來時最像機器人,
+// 先換成人會唸的樣子,比換嗓音有感得多。
+const ZH_READ_MAP = [
+  [/S\s*&\s*P\s*500/gi, '標普 500'], [/S\s*&\s*P/gi, '標普'], [/&/g, '和'],
+  [/\bFed\b/g, '聯準會'], [/\bFOMC\b/g, 'F O M C'], [/\bCPI\b/g, 'C P I'], [/\bPCE\b/g, 'P C E'],
+  [/\bGDP\b/g, 'G D P'], [/\bETFs?\b/g, 'E T F'], [/\bEPS\b/g, 'E P S'], [/\bIPO\b/g, 'I P O'],
+  [/\bREITs?\b/g, 'R E I T'], [/\bAI\b/g, 'A I'], [/\bNIM\b/g, 'N I M'], [/\bJOLTS\b/g, 'JOLTS'],
+  [/\bYoY\b/gi, '年增'], [/\bQoQ\b/gi, '季增'], [/\bbps\b/gi, '個基點'],
+  [/\bQ([1-4])\b/g, (m, n) => '第' + ['一','二','三','四'][n-1] + '季'],
+  [/\bH([12])\b/g, (m, n) => '上下'[n-1] + '半年'],
+];
+function normalizeForSpeech(text, speakLang) {
+  if (speakLang !== 'zh') return text;
+  let t = text;
+  t = t.replace(/(\d{4})-(\d{1,2})-(\d{1,2})/g, '$1年$2月$3日');   // 2026-08-02
+  t = t.replace(/(\d)\s*[-–—~～]\s*(\d)/g, '$1 到 $2');            // 3.50-3.75% / 60-80%
+  t = t.replace(/(\d{1,2})\/(\d{1,2})(?!\d)/g, '$1月$2日');        // 8/3
+  ZH_READ_MAP.forEach(([re, to]) => { t = t.replace(re, to); });
+  t = t.replace(/\b[A-Z]{2,5}\b/g, m => m.split('').join(' '));    // 股票代號逐字母唸,AHRT → A H R T
+  return t;
+}
+// 依句號切句,句與句之間插 break,讓語氣有停頓、不會一路衝到底
+function _splitSentences(text) {
+  const out = []; let cur = '';
+  for (const ch of text) {
+    cur += ch;
+    if ('。！？!?；;'.indexOf(ch) >= 0) { out.push(cur); cur = ''; }
+  }
+  if (cur.trim()) out.push(cur);
+  return out.filter(s => s.trim());
+}
 function speakLangOf(card, lang) { return lang === "en" ? "en" : lang === "ja" ? "ja" : "zh"; }
 function speakTextOf(card, lang) {
   const L = speakLangOf(card, lang);
@@ -136,7 +171,14 @@ async function azureSpeak(text, { rate='0%', speakLang='en', onStart, onEnd, onE
   const ctrl = new AbortController(); _azAbort = ctrl;
   try {
     const token = await _getAzToken(key, region, ctrl.signal);
-    const ssml = `<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='${conf.locale}'><voice name='${voice}'><prosody rate='${rate}'>${_xmlEsc(text)}</prosody></voice></speak>`;
+    const style = localStorage.getItem(conf.styleKey) || '';
+    const useStyle = style && STYLE_VOICES.has(voice);
+    const body = _splitSentences(text).map(_xmlEsc).join(`<break time='260ms'/>`);
+    const inner = `<prosody rate='${rate}'>${body}</prosody>`;
+    const styled = useStyle ? `<mstts:express-as style='${style}'>${inner}</mstts:express-as>` : inner;
+    // xml:lang 跟著嗓音本身的 locale 走(選了大陸腔就該是 zh-CN,不是介面的 zh-TW)
+    const vLocale = (voice.match(/^[a-z]{2}-[A-Z]{2}/) || [conf.locale])[0];
+    const ssml = `<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xmlns:mstts='http://www.w3.org/2001/mstts' xml:lang='${vLocale}'><voice name='${voice}'>${styled}</voice></speak>`;
     const res = await fetch(`https://${region}.tts.speech.microsoft.com/cognitiveservices/v1`, {
       method:'POST', signal:ctrl.signal,
       headers:{'Authorization':'Bearer '+token,'Content-Type':'application/ssml+xml','X-Microsoft-OutputFormat':'audio-16khz-128kbitrate-mono-mp3'},
@@ -162,8 +204,9 @@ async function azureSpeak(text, { rate='0%', speakLang='en', onStart, onEnd, onE
 }
 
 // 統一朗讀入口:Azure 優先,沒 key 或失敗就退回瀏覽器 TTS;兩者都依 speakLang 挑對應語系嗓音
-async function speakSmart(text, { speakLang='zh', azRate='0%', sysRate=1.0, onStart, onEnd, onError }={}) {
+async function speakSmart(rawText, { speakLang='zh', azRate='0%', sysRate=1.0, onStart, onEnd, onError }={}) {
   const conf = VOICE_CONF[speakLang] || VOICE_CONF.en;
+  const text = normalizeForSpeech(rawText, speakLang);
   const ok = await azureSpeak(text, { rate:azRate, speakLang, onStart, onEnd, onError });
   if (ok) return;
   speechSynthesis.cancel();
@@ -421,6 +464,7 @@ function SettingsPanel({ open, onClose }) {
   const [voice, setVoice] = React.useState(() => localStorage.getItem('mf_azureVoice') || 'en-US-AriaNeural');
   const [voiceZh, setVoiceZh] = React.useState(() => localStorage.getItem('mf_azureVoice_zh') || 'zh-TW-HsiaoChenNeural');
   const [voiceJa, setVoiceJa] = React.useState(() => localStorage.getItem('mf_azureVoice_ja') || 'ja-JP-NanamiNeural');
+  const [styleZh, setStyleZh] = React.useState(() => localStorage.getItem('mf_azureStyle_zh') || '');
   const [status, setStatus] = React.useState('');
   const save = () => {
     localStorage.setItem('mf_azureKey', key);
@@ -428,12 +472,15 @@ function SettingsPanel({ open, onClose }) {
     localStorage.setItem('mf_azureVoice', voice);
     localStorage.setItem('mf_azureVoice_zh', voiceZh);
     localStorage.setItem('mf_azureVoice_ja', voiceJa);
+    localStorage.setItem('mf_azureStyle_zh', styleZh);
     _azToken = null;
   };
   const handleSave = () => { save(); setStatus('已儲存'); setTimeout(() => setStatus(''), 2000); };
   const handleTest = async () => {
     save(); setStatus('測試中…');
-    const ok = await azureSpeak('這是 Mo’s Feed 的中文朗讀嗓音測試。', {
+    // 用真實晨報句型試聽,才聽得出縮寫與數字唸法的差別
+    const demo = normalizeForSpeech('聯準會以 9 比 3 維持利率在 3.50-3.75%，市場給 9 月升息約 60-80% 機率。忽視雷達今天鎖定 AHRT，8/5 公布 Q2 財報。', 'zh');
+    const ok = await azureSpeak(demo, {
       speakLang: 'zh',
       onEnd: () => setStatus('✓ 連線成功'),
       onError: (e) => setStatus('✗ ' + (e?.message || '失敗'))
@@ -460,12 +507,24 @@ function SettingsPanel({ open, onClose }) {
         <div>
           <div style={{ fontFamily:"'Courier New',monospace",fontSize:'9px',letterSpacing:'0.14em',textTransform:'uppercase',color:'var(--text-tertiary)',marginBottom:'5px' }}>中文嗓音（主畫面 / 連續播放）</div>
           <select className="az-input" value={voiceZh} onChange={e=>setVoiceZh(e.target.value)} style={{ cursor:'pointer' }}>
-            <option value="zh-TW-HsiaoChenNeural">曉臻（女）台灣・自然</option>
-            <option value="zh-TW-HsiaoYuNeural">曉雨（女）台灣・清亮</option>
-            <option value="zh-TW-YunJheNeural">雲哲（男）台灣・沉穩</option>
-            <option value="zh-CN-XiaoxiaoNeural">曉曉（女）大陸腔</option>
-            <option value="zh-CN-YunxiNeural">雲希（男）大陸腔</option>
+            <option value="zh-TW-HsiaoChenNeural">曉臻（女）台灣腔・自然</option>
+            <option value="zh-TW-HsiaoYuNeural">曉雨（女）台灣腔・清亮</option>
+            <option value="zh-TW-YunJheNeural">雲哲（男）台灣腔・沉穩</option>
+            <option value="zh-CN-XiaoxiaoNeural">曉曉（女）大陸腔・可調語氣</option>
+            <option value="zh-CN-YunyangNeural">雲揚（男）大陸腔・專業播報</option>
+            <option value="zh-CN-YunxiNeural">雲希（男）大陸腔・可調語氣</option>
           </select>
+        </div>
+        <div>
+          <div style={{ fontFamily:"'Courier New',monospace",fontSize:'9px',letterSpacing:'0.14em',textTransform:'uppercase',color:'var(--text-tertiary)',marginBottom:'5px' }}>中文語氣</div>
+          <select className="az-input" value={styleZh} onChange={e=>setStyleZh(e.target.value)} style={{ cursor:'pointer' }}>
+            <option value="">一般</option>
+            <option value="newscast">新聞播報</option>
+            <option value="chat">聊天（放鬆）</option>
+            <option value="gentle">溫柔</option>
+            <option value="serious">嚴肅</option>
+          </select>
+          <div style={{ fontFamily:"'Courier New',monospace",fontSize:'8px',color:'var(--text-tertiary)',lineHeight:1.6,marginTop:'4px' }}>只有大陸腔嗓音支援語氣；<br/>台灣腔會忽略這一項</div>
         </div>
         <div>
           <div style={{ fontFamily:"'Courier New',monospace",fontSize:'9px',letterSpacing:'0.14em',textTransform:'uppercase',color:'var(--text-tertiary)',marginBottom:'5px' }}>English Voice</div>
@@ -490,7 +549,7 @@ function SettingsPanel({ open, onClose }) {
           <button onClick={handleTest} style={{ flex:1,padding:'8px 0',background:'none',border:'1px solid var(--text-secondary)',color:'var(--text-secondary)',fontFamily:"'Courier New',monospace",fontSize:'9px',letterSpacing:'0.12em',textTransform:'uppercase',cursor:'pointer' }}>測試</button>
         </div>
         {status && <div style={{ fontFamily:"'Courier New',monospace",fontSize:'9px',color:'var(--text-tertiary)',letterSpacing:'0.1em' }}>{status}</div>}
-        <div style={{ marginTop:'auto',fontFamily:"'Courier New',monospace",fontSize:'8px',color:'var(--text-tertiary)',lineHeight:1.7,paddingTop:'8px',borderTop:'1px solid var(--divider)' }}>Key 存於 localStorage<br/>未設定時退回瀏覽器 TTS<br/>朗讀語系跟著畫面走：<br/>主文中文→中文嗓音<br/>展開 English→英文嗓音</div>
+        <div style={{ marginTop:'auto',fontFamily:"'Courier New',monospace",fontSize:'8px',color:'var(--text-tertiary)',lineHeight:1.7,paddingTop:'8px',borderTop:'1px solid var(--divider)' }}>Key 存於 localStorage<br/><b>沒填 Key 會退回瀏覽器內建語音，<br/>那個聽起來就是很機械。</b><br/>要好聽請填 Azure Key。<br/><br/>朗讀語系跟著畫面走：<br/>主文中文→中文嗓音<br/>展開 English→英文嗓音</div>
       </div>
     </>,
     document.body
@@ -693,7 +752,7 @@ function App() {
         <div style={{ padding:"0 32px", marginBottom:"16px" }}>
           <div style={{ marginBottom:"4px" }}>
             <h1 className="masthead-title" style={{ fontSize:"32px" }}>Mo's Feed</h1>
-            <span className="running-header" style={{ display:"block", marginTop:"4px" }}><span style={{ opacity:0.85 }}>updated 08/02/2026</span><span style={{ opacity:0.75, marginLeft:"10px" }}>v5.8</span></span>
+            <span className="running-header" style={{ display:"block", marginTop:"4px" }}><span style={{ opacity:0.85 }}>updated 08/02/2026</span><span style={{ opacity:0.75, marginLeft:"10px" }}>v5.9</span></span>
           </div>
           <div className="rule" />
         </div>
