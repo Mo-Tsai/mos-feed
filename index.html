@@ -79,7 +79,9 @@
   .nav-btn { background:none; border:1px solid var(--divider); color:var(--text-secondary); font-family:'Courier New',monospace; font-size:16px; cursor:pointer; padding:10px 18px; transition:all 0.2s ease; -webkit-tap-highlight-color:transparent; line-height:1; }
   .nav-btn-icon { padding:10px 14px; font-size:13px; }
   .nav-btn-icon.playing { border-color:var(--text); color:var(--text); }
-  @media (max-width: 420px) { .nav-btn { padding:10px 13px; } .nav-btn-icon { padding:10px 11px; } }
+  .nav-btn-lang { padding:10px 11px; font-size:11px; letter-spacing:0.08em; color:var(--text-tertiary); min-width:38px; }
+  .nav-btn-lang:hover { color:var(--text-secondary); }
+  @media (max-width: 420px) { .nav-btn { padding:10px 11px; } .nav-btn-icon { padding:10px 10px; } .nav-btn-lang { padding:10px 8px; min-width:34px; } }
   .nav-btn:hover { border-color:var(--text-secondary); color:var(--text); }
   .nav-btn:active { background:var(--bg-elevated); }
   .nav-btn:disabled { opacity:0.25; cursor:default; border-color:var(--divider); color:var(--text-tertiary); }
@@ -567,6 +569,16 @@ function App() {
 
   const [resumeMsg, setResumeMsg] = useState(null);
   const [playing, setPlaying] = useState(false);
+  // 連續播放的語言(與單卡 🔊 的「跟著畫面走」分開;開車時想聽英文就切這裡),記在 localStorage
+  const [playLang, setPlayLang] = useState(() => {
+    const v = localStorage.getItem('mf_playLang');
+    return (v === 'en' || v === 'ja' || v === 'zh') ? v : 'zh';
+  });
+  const cyclePlayLang = () => {
+    const next = { zh:'en', en:'ja', ja:'zh' }[playLang];
+    setPlayLang(next);
+    try { localStorage.setItem('mf_playLang', next); } catch(e) {}
+  };
   const lsKey = lsKeyFor(todaySub);
 
   // 每日更新後清掉舊 brief 的閱讀進度,localStorage 不會越積越多
@@ -620,20 +632,26 @@ function App() {
     if (isFlow || atEnd || !cards[idx]) { setPlaying(false); return; }
     const token = ++playTokenRef.current;
     const card = cards[idx];
-    // 開車情境:先報頻道與標籤,再唸中文主文,聽得出現在是哪一則
-    const text = card.channel + "，" + (card.tag || "") + "。" + card.zh;
+    // 開車情境:先報位置(中文再加頻道與標籤),讓耳朵知道現在是哪一則,再唸內文
+    const body = playLang === 'en' ? card.en : playLang === 'ja' ? (card.ja || card.en) : card.zh;
+    const intro = playLang === 'en' ? `Number ${idx + 1} of ${total}. `
+                : playLang === 'ja' ? `${idx + 1}／${total}。`
+                : `第 ${idx + 1} 則，${card.channel}，${card.tag || ""}。`;
+    const text = intro + body;
     const advance = () => {
       if (playTokenRef.current !== token) return;
       if (idx + 1 >= total) { setPlaying(false); go(total); return; }
       go(idx + 1);
     };
     speakSmart(text, {
-      speakLang: 'zh', azRate: '-8%', sysRate: 0.95,
+      speakLang: playLang,
+      azRate: playLang === 'zh' ? '-8%' : '-5%',
+      sysRate: playLang === 'zh' ? 0.95 : 0.88,
       onEnd: () => setTimeout(advance, 600),   // 卡與卡之間留一點呼吸
       onError: () => { if (playTokenRef.current === token) setPlaying(false); }
     });
     return () => { playTokenRef.current++; azureStop(); };
-  }, [playing, idx, total, isFlow, atEnd]);
+  }, [playing, idx, total, isFlow, atEnd, playLang]);
 
   // 切頻道 / 進資金流向就停播
   React.useEffect(() => { stopPlay(); }, [todaySub]);
@@ -675,7 +693,7 @@ function App() {
         <div style={{ padding:"0 32px", marginBottom:"16px" }}>
           <div style={{ marginBottom:"4px" }}>
             <h1 className="masthead-title" style={{ fontSize:"32px" }}>Mo's Feed</h1>
-            <span className="running-header" style={{ display:"block", marginTop:"4px" }}><span style={{ opacity:0.85 }}>updated 08/02/2026</span><span style={{ opacity:0.75, marginLeft:"10px" }}>v5.7</span></span>
+            <span className="running-header" style={{ display:"block", marginTop:"4px" }}><span style={{ opacity:0.85 }}>updated 08/02/2026</span><span style={{ opacity:0.75, marginLeft:"10px" }}>v5.8</span></span>
           </div>
           <div className="rule" />
         </div>
@@ -717,11 +735,13 @@ function App() {
         )}
       </div>
 
-      {/* Nav bar:← ▶連續播放 頁碼 ⤒回第一張 → */}
+      {/* Nav bar:← 播放語言 ▶連續播放 頁碼 ⤒回第一張 → */}
       <div className="nav-bar">
         <button className="nav-btn" onClick={() => { stopPlay(); go(idx - 1); }} disabled={isFlow || idx === 0}>←</button>
+        <button className="nav-btn nav-btn-lang" onClick={cyclePlayLang} disabled={isFlow}
+          title={"連續播放語言：" + {zh:"中文",en:"English",ja:"日本語"}[playLang] + "（點一下切換）"}>{ {zh:"中",en:"EN",ja:"日"}[playLang] }</button>
         <button className={"nav-btn nav-btn-icon" + (playing ? " playing" : "")} onClick={() => playing ? stopPlay() : setPlaying(true)}
-          disabled={isFlow || atEnd} title={playing ? "停止連續播放" : "連續播放（中文）"}>{playing ? "❚❚" : "▶"}</button>
+          disabled={isFlow || atEnd} title={playing ? "停止連續播放" : "連續播放（" + {zh:"中文",en:"English",ja:"日本語"}[playLang] + "）"}>{playing ? "❚❚" : "▶"}</button>
         <span className="nav-count">{isFlow ? "live · tradingview" : atEnd ? `${total}/${total}` : `${idx + 1} / ${total}`}</span>
         <button className="nav-btn nav-btn-icon" onClick={() => { stopPlay(); goTop(); }} disabled={isFlow || idx === 0} title="回到第一張">⤒</button>
         <button className="nav-btn" onClick={() => { stopPlay(); go(idx + 1); }} disabled={isFlow || atEnd}>→</button>
