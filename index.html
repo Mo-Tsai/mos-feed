@@ -75,8 +75,11 @@
   [data-theme="dark"] .word-popup { box-shadow: 0 4px 20px rgba(0,0,0,0.4); }
   .az-input { width:100%; background:var(--bg); border:1px solid var(--divider); color:var(--text); padding:7px 10px; font-family:'Courier New',monospace; font-size:11px; outline:none; -webkit-appearance:none; appearance:none; border-radius:0; }
   .az-input:focus { border-color:var(--text-secondary); }
-  .nav-bar { position:fixed; bottom:0; left:50%; transform:translateX(-50%); width:100%; max-width:680px; display:flex; justify-content:space-between; align-items:center; padding:10px 24px 14px; background:var(--bg); border-top:1px solid var(--divider); z-index:50; }
-  .nav-btn { background:none; border:1px solid var(--divider); color:var(--text-secondary); font-family:'Courier New',monospace; font-size:16px; cursor:pointer; padding:10px 22px; transition:all 0.2s ease; -webkit-tap-highlight-color:transparent; line-height:1; }
+  .nav-bar { position:fixed; bottom:0; left:50%; transform:translateX(-50%); width:100%; max-width:680px; display:flex; justify-content:space-between; align-items:center; gap:6px; padding:10px 16px 14px; background:var(--bg); border-top:1px solid var(--divider); z-index:50; }
+  .nav-btn { background:none; border:1px solid var(--divider); color:var(--text-secondary); font-family:'Courier New',monospace; font-size:16px; cursor:pointer; padding:10px 18px; transition:all 0.2s ease; -webkit-tap-highlight-color:transparent; line-height:1; }
+  .nav-btn-icon { padding:10px 14px; font-size:13px; }
+  .nav-btn-icon.playing { border-color:var(--text); color:var(--text); }
+  @media (max-width: 420px) { .nav-btn { padding:10px 13px; } .nav-btn-icon { padding:10px 11px; } }
   .nav-btn:hover { border-color:var(--text-secondary); color:var(--text); }
   .nav-btn:active { background:var(--bg-elevated); }
   .nav-btn:disabled { opacity:0.25; cursor:default; border-color:var(--divider); color:var(--text-tertiary); }
@@ -88,8 +91,24 @@
 <script type="text/babel">
 const { useState, useMemo } = React;
 
-// ===== AZURE TTS =====
-let _azToken = null, _azTokenExp = 0, _azAbort = null;
+// ===== AZURE TTS(依顯示語系切換嗓音) =====
+let _azToken = null, _azTokenExp = 0, _azAbort = null, _azAudio = null;
+// 每個語系一組預設嗓音 + localStorage key,朗讀時依當下顯示語言自動挑選
+const VOICE_CONF = {
+  zh: { locale:'zh-TW', lsKey:'mf_azureVoice_zh', fallback:'zh-TW-HsiaoChenNeural',
+        sysVoices:["Microsoft HsiaoChen Online (Natural) - Chinese (Taiwan)","Google 國語（臺灣）","Meijia","Tingting","Google 普通话（中国大陆）"] },
+  en: { locale:'en-US', lsKey:'mf_azureVoice',    fallback:'en-US-AriaNeural',
+        sysVoices:["Google US English","Microsoft Aria Online (Natural) - English (United States)","Microsoft Guy Online (Natural) - English (United States)","Samantha","Alex"] },
+  ja: { locale:'ja-JP', lsKey:'mf_azureVoice_ja', fallback:'ja-JP-NanamiNeural',
+        sysVoices:["Microsoft Nanami Online (Natural) - Japanese (Japan)","Google 日本語","Kyoko","O-ren"] },
+};
+function speakLangOf(card, lang) { return lang === "en" ? "en" : lang === "ja" ? "ja" : "zh"; }
+function speakTextOf(card, lang) {
+  const L = speakLangOf(card, lang);
+  if (L === "en") return card.en;
+  if (L === "ja") return card.ja || card.en;
+  return card.zh;
+}
 function _xmlEsc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 async function _getAzToken(key, region, signal) {
   const now = Date.now();
@@ -100,17 +119,22 @@ async function _getAzToken(key, region, signal) {
   _azTokenExp = now + 9*60*1000;
   return _azToken;
 }
-function azureStop() { if (_azAbort) { _azAbort.abort(); _azAbort = null; } }
-async function azureSpeak(text, { rate='0%', onStart, onEnd, onError }={}) {
+function azureStop() {
+  if (_azAbort) { _azAbort.abort(); _azAbort = null; }
+  if (_azAudio) { try { _azAudio.pause(); } catch(e) {} _azAudio = null; }
+  try { speechSynthesis.cancel(); } catch(e) {}
+}
+async function azureSpeak(text, { rate='0%', speakLang='en', onStart, onEnd, onError }={}) {
   const key = localStorage.getItem('mf_azureKey') || '';
   const region = localStorage.getItem('mf_azureRegion') || 'eastus';
-  const voice = localStorage.getItem('mf_azureVoice') || 'en-US-AriaNeural';
+  const conf = VOICE_CONF[speakLang] || VOICE_CONF.en;
+  const voice = localStorage.getItem(conf.lsKey) || conf.fallback;
   if (!key) return false;
   azureStop();
   const ctrl = new AbortController(); _azAbort = ctrl;
   try {
     const token = await _getAzToken(key, region, ctrl.signal);
-    const ssml = `<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='en-US'><voice name='${voice}'><prosody rate='${rate}'>${_xmlEsc(text)}</prosody></voice></speak>`;
+    const ssml = `<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='${conf.locale}'><voice name='${voice}'><prosody rate='${rate}'>${_xmlEsc(text)}</prosody></voice></speak>`;
     const res = await fetch(`https://${region}.tts.speech.microsoft.com/cognitiveservices/v1`, {
       method:'POST', signal:ctrl.signal,
       headers:{'Authorization':'Bearer '+token,'Content-Type':'application/ssml+xml','X-Microsoft-OutputFormat':'audio-16khz-128kbitrate-mono-mp3'},
@@ -121,9 +145,10 @@ async function azureSpeak(text, { rate='0%', onStart, onEnd, onError }={}) {
     if (ctrl.signal.aborted) return true;
     const url = URL.createObjectURL(blob);
     const audio = new Audio(url);
+    _azAudio = audio;
     if (onStart) onStart(audio);
-    audio.onended = () => { URL.revokeObjectURL(url); if (onEnd) onEnd(); };
-    audio.onerror = () => { URL.revokeObjectURL(url); if (onError) onError(); };
+    audio.onended = () => { URL.revokeObjectURL(url); if (_azAudio === audio) _azAudio = null; if (onEnd) onEnd(); };
+    audio.onerror = () => { URL.revokeObjectURL(url); if (_azAudio === audio) _azAudio = null; if (onError) onError(); };
     await audio.play();
     return true;
   } catch(e) {
@@ -132,6 +157,31 @@ async function azureSpeak(text, { rate='0%', onStart, onEnd, onError }={}) {
     if (onError) onError(e);
     return false;
   }
+}
+
+// 統一朗讀入口:Azure 優先,沒 key 或失敗就退回瀏覽器 TTS;兩者都依 speakLang 挑對應語系嗓音
+async function speakSmart(text, { speakLang='zh', azRate='0%', sysRate=1.0, onStart, onEnd, onError }={}) {
+  const conf = VOICE_CONF[speakLang] || VOICE_CONF.en;
+  const ok = await azureSpeak(text, { rate:azRate, speakLang, onStart, onEnd, onError });
+  if (ok) return;
+  speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = conf.locale; u.rate = sysRate; u.pitch = 1.0; u.volume = 1.0;
+  const pick = () => {
+    const voices = speechSynthesis.getVoices();
+    const byName = conf.sysVoices.map(n => voices.find(v => v.name === n)).find(Boolean);
+    const norm = s => (s || '').replace('_','-').toLowerCase();
+    const byLang = voices.find(v => norm(v.lang) === conf.locale.toLowerCase())
+                || voices.find(v => norm(v.lang).startsWith(conf.locale.slice(0,2)));
+    const picked = byName || byLang;
+    if (picked) u.voice = picked;
+  };
+  if (speechSynthesis.getVoices().length > 0) pick();
+  else await new Promise(r => { speechSynthesis.onvoiceschanged = () => { pick(); speechSynthesis.onvoiceschanged = null; r(); }; setTimeout(r, 600); });
+  u.onend = () => { if (onEnd) onEnd(); };
+  u.onerror = () => { if (onError) onError(); };
+  if (onStart) onStart(null);
+  speechSynthesis.speak(u);
 }
 
 // ===== 頻道設定(要加新頻道:在 CHANNELS 加一行、CARDS 加卡片即可,不用動版型) =====
@@ -147,7 +197,7 @@ const CHANNELS = [
   { key: "今日評估", color: "#E8A838" },
 ];
 
-// ===== 每日卡片(由每日排程整批抽換,共 20 張) =====
+// ===== 每日卡片(由每日排程整批抽換,自 v5.7 起共 30 張;張數不寫死,版型跟著陣列長度走) =====
 const CARDS = [
     {"id": "overnight_0", "channel": "隔夜盤勢", "tag": "油價反差", "color": "#E05C5C", "stocks": [{"t": "USO", "n": "WTI 週五收 84.67 美元、但周線跌逾 5%"}, {"t": "BNO", "n": "布蘭特收 90.12 美元、單日漲逾 1%"}, {"t": "XLE", "n": "能源類股靠油價擐題、但題材已轉弱"}], "en": "Weekend read on oil: the headline and the trend point opposite ways. Brent settled up more than 1% at $90.12 on Friday and WTI at $84.67 after Iran said it attacked two tankers transiting the Strait of Hormuz — yet crude still fell more than 5% for the week, having sold off hard on Monday as hopes of Middle East de-escalation spread. Goldman Sachs says Brent should moderate toward $80 by year-end if Hormuz fully reopens in the final quarter. The market is now trading a peace scenario it has not been given, while Iran keeps insisting on controlling the Strait under any deal.", "zh": "週末該看清楚的是油價：標題跟趨勢正在吐反。伊朗聲稱於 7/31 攻擊兩艘通過荷姆茲海峽的油輪，布蘭特原油週五收漲逾 1% 至 90.12 美元、WTI 收 84.67 美元；但拉長到整週看，原油其實跌逾 5%，因為週一中東降溫預期擴散時曾經重跌。高盛認為若荷姆茲在第四季完全重啟，布蘭特年底可回落至 80 美元。市場現在交易的是一個還沒發生的和平劇本，而伊朗仍堅持任何協議都要掌控該海峽。", "ja": "週末に見極めるべきは原油だ——見出しとトレンドが逆を向いている。イランが7月31日にホルムズ海峡を通過中のタンカー2隻を攻撃したと発表し、ブレントは金曜1%超高の90.12ドル、WTIは84.67ドルで引けた。だが週間では5%超の下落。月曜に中東の緊張緩和期待から大きく売られたためだ。ゴールドマン・サックスは、第4四半期にホルムズが完全再開すればブレントは年末に80ドルまで落ち着くと見る。市場はまだ与えられていない和平シナリオを取引しており、イランはどんな合意でも海峡の管理を譲らないと主張し続けている。", "url": "https://www.cnbc.com/2026/07/31/oil-prices-today-brent-wti-hormuz-trump-iran-.html"},
     {"id": "overnight_1", "channel": "隔夜盤勢", "tag": "財報成績單", "color": "#E05C5C", "stocks": [{"t": "SPY", "n": "已公布的約 300 家成分股中 85% 超預期"}, {"t": "RSP", "n": "等權重版本是檢驗廣度的尺"}, {"t": "QQQ", "n": "科技股已交完大部分卷子"}], "en": "Take the earnings season scorecard into the new week. Of the roughly 300 S&P 500 companies that have reported, 85% beat expectations, and aggregate profits are tracking to grow more than 47% year over year. That is a genuinely strong number — and it is exactly why the next few weeks matter more than the last few. When a beat rate is this high, it is already in the price, and the marginal dollar starts trading on guidance and on the discount rate instead. Apple's 7.35% drop on soft guidance last week was the template.", "zh": "進新的一週之前，先把財報季的成績單看完。S&P 500 已公布的約 300 家公司中，85% 繳出優於預期的每股盈餘，整體獲利追踪到年增逾 47%。這是真的很強的數字——而這正是接下來幾週比過去幾週更關鍵的原因。當超預期比例高到這種程度，好消息已經在價格裡，邊際資金開始改根據「展望」跟「折現率」交易。上週蘋果因指引偏軟而重挾 7.35%，就是這個模式的範本。", "ja": "新しい週に入る前に、決算シーズンの成績表を確認しておこう。S&P500のうちすでに発表した約300社の85%が事前予想を上回り、利益は全体で前年比47%超の伸びを辿っている。本当に強い数字だ——だからこそ、これからの数週間の方が重要になる。上振れ率がここまで高いと、好材料はすでに価格に組み込まれており、限界的な資金は「ガイダンス」と「割引率」で取引し始める。先週、アップルが見通しの弱さで7.35%安となったのがその雛形だ。", "url": "https://www.cnbc.com/2026/07/31/stock-market-next-week-outlook-for-aug-3-7-2026.html"},
@@ -174,6 +224,16 @@ const CARDS = [
 // 「資金流向」是特殊分頁:嵌 TradingView 即時熱力圖,不吃 CARDS、每日排程不用動它
 const TODAY_SUBS = ["全部", ...CHANNELS.map(c => c.key), "資金流向"];
 
+// 內容指紋:CARDS 一換(每日排程更新)就變,閱讀進度 key 跟著換 → 新的一天自動從第 1 張開始讀。
+// 排程只要照常抽換 CARDS 就好,不用額外維護日期。
+const BRIEF_ID = (() => {
+  const s = CARDS.map(c => c.id + "|" + (c.zh || "").slice(0, 24)).join("~");
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
+  return CARDS.length + "-" + (h >>> 0).toString(36);
+})();
+const lsKeyFor = (sub) => "mosfeed_" + BRIEF_ID + "_" + sub;
+
 // ===== 討論 prompt(每日排程同步更新) =====
 const DISCUSS_PROMPT = "我剛讀完 2026-08-02 的 Mo's Feed 財經晨報(20 卡版)。今天重點:(1) 週末休市,但油價説了反話——布蘭特週五收 90.12、WTI 84.67,但整週其實跌逾 5%,市場在交易一個還沒發生的中東和平劇本;(2) 財報季成績單很強——約 300 家 S&P 500 公司中 85% 超預期、整體獲利年增逾 47%;(3) 但升息已不是尾部風險——七月 FOMC 9:3 維持 3.50-3.75%,Polymarket 給 9 月升息約 60%、CME FedWatch 給到 9 月中至少升 1 碼約 81-82%;(4) 這輪通膍是能源供給衝擊,升息打不開荷姆茲海峽——政策工具與問題錯配;(5) 小型股把算術寫明了——R2K 獲利成長共識 38%,但 BofA 估每升 1 碼營業獲利約 -2%,且約 40% 成分股不賺錢;(6) 忽視雷達鎖定 AH Realty Trust(AHRT)、Ames National(ATLO)、Hudson Technologies(HDSN)、Midera Food Processing(MFP)——兩檔新名字加兩檔驗證中的池內股。請跟我討論:本週 8/7 非農若偏強,哪一類部位會先被重新定價?ATLO 的淨息差改善有一部分靠「市場利率下降」,若 9 月真的升息,這個多頭論點還站得住嗎?雷達池在 Notion:https://app.notion.com/p/6ae9be8507e24aaf85a9a8af4b69fcf0";
 
@@ -198,7 +258,7 @@ function WordPopup({ popup, onSpeak }) {
   );
 }
 
-function CardView({ card, idx, total }) {
+function CardView({ card, idx, total, onManualSpeak }) {
   const [lang, setLang] = useState(null);
   const [popup, setPopup] = useState(null);
   const [speaking, setSpeaking] = useState(false);
@@ -207,57 +267,36 @@ function CardView({ card, idx, total }) {
   const toggle = (target) => setLang(lang === target ? null : target);
   const isOpen = lang !== null;
 
-  const speakWord = React.useCallback(async (word) => {
-    const ok = await azureSpeak(word, { rate:'-15%' });
-    if (!ok) {
-      speechSynthesis.cancel();
-      const u = new SpeechSynthesisUtterance(word);
-      u.lang = "en-US"; u.rate = 0.82;
-      const voices = speechSynthesis.getVoices();
-      const picked = ["Google US English","Microsoft Aria Online (Natural) - English (United States)","Samantha","Alex"].map(n => voices.find(v => v.name === n)).find(Boolean);
-      if (picked) u.voice = picked;
-      speechSynthesis.speak(u);
-    }
+  // 單字發音永遠是英文(點的是英文原文裡的單字)
+  const speakWord = React.useCallback((word) => {
+    speakSmart(word, { speakLang:'en', azRate:'-15%', sysRate:0.82 });
   }, []);
 
+  // 朗讀全文:語系跟著畫面走 — 沒展開=中文主文、展開 English=英文、展開日本語=日文
   const speakAll = React.useCallback(async (e) => {
     e.stopPropagation();
-    if (speaking) {
-      azureStop();
-      if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
-      speechSynthesis.cancel();
-      setSpeaking(false);
-      return;
-    }
+    if (speaking) { azureStop(); audioRef.current = null; setSpeaking(false); return; }
+    if (onManualSpeak) onManualSpeak();   // 手動朗讀時先停掉連續播放,避免兩個聲音疊在一起
     setSpeaking(true);
-    const ok = await azureSpeak(card.en, {
-      rate: '-5%',
+    const L = speakLangOf(card, lang);
+    await speakSmart(speakTextOf(card, lang), {
+      speakLang: L,
+      azRate: L === 'zh' ? '-8%' : '-5%',
+      sysRate: L === 'zh' ? 0.95 : 0.88,
       onStart: (audio) => { audioRef.current = audio; },
       onEnd: () => { audioRef.current = null; setSpeaking(false); },
       onError: () => { audioRef.current = null; setSpeaking(false); }
     });
-    if (!ok) {
-      const u = new SpeechSynthesisUtterance(card.en);
-      u.lang = "en-US"; u.rate = 0.88; u.pitch = 1.0; u.volume = 1.0;
-      const tryVoices = () => {
-        const voices = speechSynthesis.getVoices();
-        const picked = ["Google US English","Microsoft Aria Online (Natural) - English (United States)","Microsoft Guy Online (Natural) - English (United States)","Samantha","Alex"].map(n => voices.find(v => v.name === n)).find(Boolean);
-        if (picked) u.voice = picked;
-      };
-      if (speechSynthesis.getVoices().length > 0) tryVoices();
-      else { speechSynthesis.onvoiceschanged = () => { tryVoices(); speechSynthesis.onvoiceschanged = null; }; }
-      u.onend = () => setSpeaking(false);
-      u.onerror = () => setSpeaking(false);
-      speechSynthesis.speak(u);
-    }
-  }, [card.en, speaking]);
+  }, [card, lang, speaking, onManualSpeak]);
 
-  // Stop speaking & close popup when card changes
+  const speakingRef = React.useRef(false);
+  React.useEffect(() => { speakingRef.current = speaking; }, [speaking]);
+
+  // 換卡時關掉 popup 與翻譯請求;只有「手動朗讀中」才停聲音,不然會誤殺連續播放
   React.useEffect(() => {
     return () => {
-      azureStop();
-      if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
-      speechSynthesis.cancel();
+      if (speakingRef.current) { azureStop(); }
+      audioRef.current = null;
       setSpeaking(false);
       setPopup(null);
       if (abortRef.current) abortRef.current.abort();
@@ -305,7 +344,10 @@ function CardView({ card, idx, total }) {
         <span style={{ display:"inline-block", width:"18px", height:"1px", background:card.color, flexShrink:0 }} />
         <span style={{ fontFamily:"'Courier New',monospace", fontSize:"9px", letterSpacing:"0.18em", textTransform:"uppercase", color:card.color, opacity:0.9 }}>{card.channel}</span>
         <span style={{ fontFamily:"'Courier New',monospace", fontSize:"9px", letterSpacing:"0.18em", textTransform:"uppercase", color:"var(--text-tertiary)" }}>{card.tag}</span>
-        <button className={"speak-btn" + (speaking ? " active" : "")} onPointerDown={e => e.stopPropagation()} onClick={speakAll} title={speaking ? "停止朗讀" : "朗讀全文"} style={{ marginLeft:"auto" }}>{speaking ? "■" : "🔊"}</button>
+        <span style={{ marginLeft:"auto", display:"flex", alignItems:"center", gap:"6px" }}>
+          <span style={{ fontFamily:"'Courier New',monospace", fontSize:"8px", letterSpacing:"0.14em", textTransform:"uppercase", color:"var(--text-tertiary)" }}>{ {zh:"中文",en:"EN",ja:"日本語"}[speakLangOf(card, lang)] }</span>
+          <button className={"speak-btn" + (speaking ? " active" : "")} onPointerDown={e => e.stopPropagation()} onClick={speakAll} title={speaking ? "停止朗讀" : "朗讀（依目前顯示語言）"}>{speaking ? "■" : "🔊"}</button>
+        </span>
       </div>
       <p style={{ fontFamily:"system-ui,-apple-system,'PingFang TC','Hiragino Sans',sans-serif", fontSize:"19px", lineHeight:1.9, color:"var(--text)", margin:0, maxWidth:"36ch", fontWeight:400, letterSpacing:"0.01em" }}>{card.zh}</p>
       {card.stocks && card.stocks.length > 0 && (
@@ -346,7 +388,7 @@ function CardView({ card, idx, total }) {
   );
 }
 
-function EndScreen({ onPrev }) {
+function EndScreen({ onPrev, onTop }) {
   const [copied, setCopied] = React.useState(false);
   const copyPrompt = () => {
     const done = () => { setCopied(true); setTimeout(() => setCopied(false), 2000); };
@@ -361,8 +403,9 @@ function EndScreen({ onPrev }) {
   return (
     <div className="end-screen">
       <p style={{ fontFamily:"'Courier New',monospace", fontSize:"11px", letterSpacing:"0.14em", color:"var(--text-tertiary)", textTransform:"uppercase" }}>end of brief</p>
-      <div style={{ display:"flex", gap:"12px" }}>
+      <div style={{ display:"flex", gap:"12px", flexWrap:"wrap", justifyContent:"center" }}>
         <button className="end-btn" onClick={onPrev}>← Prev</button>
+        <button className="end-btn" onClick={onTop}>⤒ 回第一張</button>
         <button className="end-btn" onClick={copyPrompt}>{copied ? "✓ 已複製" : "跟 Claude 討論"}</button>
       </div>
       <p style={{ fontFamily:"'Courier New',monospace", fontSize:"9px", letterSpacing:"0.1em", color:"var(--text-tertiary)", maxWidth:"32ch", textAlign:"center", lineHeight:1.8 }}>複製今日摘要 prompt，貼進 Claude 開始復盤</p>
@@ -374,17 +417,22 @@ function SettingsPanel({ open, onClose }) {
   const [key, setKey] = React.useState(() => localStorage.getItem('mf_azureKey') || '');
   const [region, setRegion] = React.useState(() => localStorage.getItem('mf_azureRegion') || 'eastus');
   const [voice, setVoice] = React.useState(() => localStorage.getItem('mf_azureVoice') || 'en-US-AriaNeural');
+  const [voiceZh, setVoiceZh] = React.useState(() => localStorage.getItem('mf_azureVoice_zh') || 'zh-TW-HsiaoChenNeural');
+  const [voiceJa, setVoiceJa] = React.useState(() => localStorage.getItem('mf_azureVoice_ja') || 'ja-JP-NanamiNeural');
   const [status, setStatus] = React.useState('');
   const save = () => {
     localStorage.setItem('mf_azureKey', key);
     localStorage.setItem('mf_azureRegion', region);
     localStorage.setItem('mf_azureVoice', voice);
+    localStorage.setItem('mf_azureVoice_zh', voiceZh);
+    localStorage.setItem('mf_azureVoice_ja', voiceJa);
     _azToken = null;
   };
   const handleSave = () => { save(); setStatus('已儲存'); setTimeout(() => setStatus(''), 2000); };
   const handleTest = async () => {
     save(); setStatus('測試中…');
-    const ok = await azureSpeak('Hello, this is Azure Neural voice for Mo\'s Feed.', {
+    const ok = await azureSpeak('這是 Mo’s Feed 的中文朗讀嗓音測試。', {
+      speakLang: 'zh',
       onEnd: () => setStatus('✓ 連線成功'),
       onError: (e) => setStatus('✗ ' + (e?.message || '失敗'))
     });
@@ -408,7 +456,17 @@ function SettingsPanel({ open, onClose }) {
           <input className="az-input" value={region} onChange={e=>setRegion(e.target.value)} placeholder="eastus" />
         </div>
         <div>
-          <div style={{ fontFamily:"'Courier New',monospace",fontSize:'9px',letterSpacing:'0.14em',textTransform:'uppercase',color:'var(--text-tertiary)',marginBottom:'5px' }}>Voice</div>
+          <div style={{ fontFamily:"'Courier New',monospace",fontSize:'9px',letterSpacing:'0.14em',textTransform:'uppercase',color:'var(--text-tertiary)',marginBottom:'5px' }}>中文嗓音（主畫面 / 連續播放）</div>
+          <select className="az-input" value={voiceZh} onChange={e=>setVoiceZh(e.target.value)} style={{ cursor:'pointer' }}>
+            <option value="zh-TW-HsiaoChenNeural">曉臻（女）台灣・自然</option>
+            <option value="zh-TW-HsiaoYuNeural">曉雨（女）台灣・清亮</option>
+            <option value="zh-TW-YunJheNeural">雲哲（男）台灣・沉穩</option>
+            <option value="zh-CN-XiaoxiaoNeural">曉曉（女）大陸腔</option>
+            <option value="zh-CN-YunxiNeural">雲希（男）大陸腔</option>
+          </select>
+        </div>
+        <div>
+          <div style={{ fontFamily:"'Courier New',monospace",fontSize:'9px',letterSpacing:'0.14em',textTransform:'uppercase',color:'var(--text-tertiary)',marginBottom:'5px' }}>English Voice</div>
           <select className="az-input" value={voice} onChange={e=>setVoice(e.target.value)} style={{ cursor:'pointer' }}>
             <option value="en-US-AriaNeural">Aria（女）自然流暢</option>
             <option value="en-US-JennyNeural">Jenny（女）清晰</option>
@@ -417,12 +475,20 @@ function SettingsPanel({ open, onClose }) {
             <option value="en-US-TonyNeural">Tony（男）自信</option>
           </select>
         </div>
+        <div>
+          <div style={{ fontFamily:"'Courier New',monospace",fontSize:'9px',letterSpacing:'0.14em',textTransform:'uppercase',color:'var(--text-tertiary)',marginBottom:'5px' }}>日本語嗓音</div>
+          <select className="az-input" value={voiceJa} onChange={e=>setVoiceJa(e.target.value)} style={{ cursor:'pointer' }}>
+            <option value="ja-JP-NanamiNeural">Nanami（女）自然</option>
+            <option value="ja-JP-KeitaNeural">Keita（男）沉穩</option>
+            <option value="ja-JP-AoiNeural">Aoi（女）清亮</option>
+          </select>
+        </div>
         <div style={{ display:'flex',gap:'8px' }}>
           <button onClick={handleSave} style={{ flex:1,padding:'8px 0',background:'none',border:'1px solid var(--divider)',color:'var(--text-tertiary)',fontFamily:"'Courier New',monospace",fontSize:'9px',letterSpacing:'0.12em',textTransform:'uppercase',cursor:'pointer' }}>儲存</button>
           <button onClick={handleTest} style={{ flex:1,padding:'8px 0',background:'none',border:'1px solid var(--text-secondary)',color:'var(--text-secondary)',fontFamily:"'Courier New',monospace",fontSize:'9px',letterSpacing:'0.12em',textTransform:'uppercase',cursor:'pointer' }}>測試</button>
         </div>
         {status && <div style={{ fontFamily:"'Courier New',monospace",fontSize:'9px',color:'var(--text-tertiary)',letterSpacing:'0.1em' }}>{status}</div>}
-        <div style={{ marginTop:'auto',fontFamily:"'Courier New',monospace",fontSize:'8px',color:'var(--text-tertiary)',lineHeight:1.7,paddingTop:'8px',borderTop:'1px solid var(--divider)' }}>Key 存於 localStorage<br/>未設定時退回瀏覽器 TTS</div>
+        <div style={{ marginTop:'auto',fontFamily:"'Courier New',monospace",fontSize:'8px',color:'var(--text-tertiary)',lineHeight:1.7,paddingTop:'8px',borderTop:'1px solid var(--divider)' }}>Key 存於 localStorage<br/>未設定時退回瀏覽器 TTS<br/>朗讀語系跟著畫面走：<br/>主文中文→中文嗓音<br/>展開 English→英文嗓音</div>
       </div>
     </>,
     document.body
@@ -500,13 +566,25 @@ function App() {
   const isFlow = todaySub === "資金流向";
 
   const [resumeMsg, setResumeMsg] = useState(null);
-  const lsKey = "mosfeed_Today_" + todaySub;
+  const [playing, setPlaying] = useState(false);
+  const lsKey = lsKeyFor(todaySub);
 
-  // Read localStorage on tab/sub change
+  // 每日更新後清掉舊 brief 的閱讀進度,localStorage 不會越積越多
   React.useEffect(() => {
-    const key = "mosfeed_Today_" + todaySub;
     try {
-      const saved = parseInt(localStorage.getItem(key), 10);
+      const stale = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && k.indexOf("mosfeed_") === 0 && k.indexOf(BRIEF_ID) !== 8) stale.push(k);
+      }
+      stale.forEach(k => localStorage.removeItem(k));
+    } catch(e) {}
+  }, []);
+
+  // Read localStorage on tab/sub change(換 brief 就沒有舊 key,自然從第 1 張開始)
+  React.useEffect(() => {
+    try {
+      const saved = parseInt(localStorage.getItem(lsKeyFor(todaySub)), 10);
       if (saved > 0 && saved < cards.length) {
         setIdx(saved); setDir(0);
         setResumeMsg({ idx: saved, total: cards.length });
@@ -525,15 +603,53 @@ function App() {
     try { localStorage.setItem(lsKey, String(newIdx)); } catch(e) {}
   };
 
+  // 回到第一張(開車時單手可按;連續播放中按了就從頭再播)
+  const goTop = () => { setDir(-1); setIdx(0); try { localStorage.setItem(lsKey, "0"); } catch(e) {} };
+
+  // ===== 連續播放:唸完一張自動翻下一張,一路唸到最後 =====
+  const playTokenRef = React.useRef(0);
+
+  const stopPlay = React.useCallback(() => {
+    playTokenRef.current++;   // 讓還在飛的 onEnd 失效,不會誤翻頁
+    azureStop();
+    setPlaying(false);
+  }, []);
+
+  React.useEffect(() => {
+    if (!playing) return;
+    if (isFlow || atEnd || !cards[idx]) { setPlaying(false); return; }
+    const token = ++playTokenRef.current;
+    const card = cards[idx];
+    // 開車情境:先報頻道與標籤,再唸中文主文,聽得出現在是哪一則
+    const text = card.channel + "，" + (card.tag || "") + "。" + card.zh;
+    const advance = () => {
+      if (playTokenRef.current !== token) return;
+      if (idx + 1 >= total) { setPlaying(false); go(total); return; }
+      go(idx + 1);
+    };
+    speakSmart(text, {
+      speakLang: 'zh', azRate: '-8%', sysRate: 0.95,
+      onEnd: () => setTimeout(advance, 600),   // 卡與卡之間留一點呼吸
+      onError: () => { if (playTokenRef.current === token) setPlaying(false); }
+    });
+    return () => { playTokenRef.current++; azureStop(); };
+  }, [playing, idx, total, isFlow, atEnd]);
+
+  // 切頻道 / 進資金流向就停播
+  React.useEffect(() => { stopPlay(); }, [todaySub]);
+
   // Keyboard
   React.useEffect(() => {
     const handler = (e) => {
-      if (e.key === "ArrowRight" || e.key === "ArrowDown") go(idx + 1);
-      if (e.key === "ArrowLeft" || e.key === "ArrowUp") go(idx - 1);
+      if (e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;
+      if (e.key === "ArrowRight" || e.key === "ArrowDown") { stopPlay(); go(idx + 1); }
+      if (e.key === "ArrowLeft" || e.key === "ArrowUp") { stopPlay(); go(idx - 1); }
+      if (e.key === "Home") { stopPlay(); goTop(); }
+      if (e.key === " ") { e.preventDefault(); playing ? stopPlay() : setPlaying(true); }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [idx, total]);
+  }, [idx, total, playing]);
 
   // Touch
   const onTouchStart = (e) => { touchRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }; };
@@ -542,6 +658,7 @@ function App() {
     const dx = e.changedTouches[0].clientX - touchRef.current.x;
     const dy = e.changedTouches[0].clientY - touchRef.current.y;
     if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 50) {
+      stopPlay();                       // 手動滑動就接手控制權,停掉連續播放
       if (dx < 0) go(idx + 1);
       else go(idx - 1);
     }
@@ -558,7 +675,7 @@ function App() {
         <div style={{ padding:"0 32px", marginBottom:"16px" }}>
           <div style={{ marginBottom:"4px" }}>
             <h1 className="masthead-title" style={{ fontSize:"32px" }}>Mo's Feed</h1>
-            <span className="running-header" style={{ display:"block", marginTop:"4px" }}><span style={{ opacity:0.85 }}>updated 08/02/2026</span><span style={{ opacity:0.75, marginLeft:"10px" }}>v5.6</span></span>
+            <span className="running-header" style={{ display:"block", marginTop:"4px" }}><span style={{ opacity:0.85 }}>updated 08/02/2026</span><span style={{ opacity:0.75, marginLeft:"10px" }}>v5.7</span></span>
           </div>
           <div className="rule" />
         </div>
@@ -591,20 +708,23 @@ function App() {
           <HeatmapView />
         ) : atEnd ? (
           <div className="card-slide" style={{ position:"relative", transform:"none" }}>
-            <EndScreen onPrev={() => go(total - 1)} />
+            <EndScreen onPrev={() => go(total - 1)} onTop={goTop} />
           </div>
         ) : (
           <div className="card-slide" key={cards[idx].id} style={{ position:"relative", transform:"none" }}>
-            <CardView card={cards[idx]} idx={idx} total={total} />
+            <CardView card={cards[idx]} idx={idx} total={total} onManualSpeak={stopPlay} />
           </div>
         )}
       </div>
 
-      {/* Nav bar */}
+      {/* Nav bar:← ▶連續播放 頁碼 ⤒回第一張 → */}
       <div className="nav-bar">
-        <button className="nav-btn" onClick={() => go(idx - 1)} disabled={isFlow || idx === 0}>←</button>
+        <button className="nav-btn" onClick={() => { stopPlay(); go(idx - 1); }} disabled={isFlow || idx === 0}>←</button>
+        <button className={"nav-btn nav-btn-icon" + (playing ? " playing" : "")} onClick={() => playing ? stopPlay() : setPlaying(true)}
+          disabled={isFlow || atEnd} title={playing ? "停止連續播放" : "連續播放（中文）"}>{playing ? "❚❚" : "▶"}</button>
         <span className="nav-count">{isFlow ? "live · tradingview" : atEnd ? `${total}/${total}` : `${idx + 1} / ${total}`}</span>
-        <button className="nav-btn" onClick={() => go(idx + 1)} disabled={isFlow || atEnd}>→</button>
+        <button className="nav-btn nav-btn-icon" onClick={() => { stopPlay(); goTop(); }} disabled={isFlow || idx === 0} title="回到第一張">⤒</button>
+        <button className="nav-btn" onClick={() => { stopPlay(); go(idx + 1); }} disabled={isFlow || atEnd}>→</button>
       </div>
     </div>
   );
