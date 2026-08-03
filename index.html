@@ -94,7 +94,7 @@
 const { useState, useMemo } = React;
 
 // ===== AZURE TTS(依顯示語系切換嗓音) =====
-let _azToken = null, _azTokenExp = 0, _azAbort = null, _azAudio = null;
+let _azToken = null, _azTokenExp = 0, _azAbort = null, _azAudio = null, _azEl = null;
 // 每個語系一組預設嗓音 + localStorage key,朗讀時依當下顯示語言自動挑選
 const VOICE_CONF = {
   zh: { locale:'zh-TW', lsKey:'mf_azureVoice_zh', fallback:'zh-TW-HsiaoChenNeural', styleKey:'mf_azureStyle_zh',
@@ -156,9 +156,29 @@ async function _getAzToken(key, region, signal) {
   _azTokenExp = now + 9*60*1000;
   return _azToken;
 }
+// 持久播放器:iOS 只放行「使用者手勢解鎖過的元素」。連續播放每張卡若都 new Audio(),
+// 第二張起就不是手勢觸發、會被 iOS 擋下 → 停播。改成同一顆元素換 src 續播就不會被擋。
+function _azPlayer() {
+  if (!_azEl) { _azEl = new Audio(); _azEl.preload = 'auto'; }
+  return _azEl;
+}
+const _SILENT_WAV = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA';
+function azureUnlock() {   // 必須在點擊/按鍵等使用者手勢裡呼叫
+  try {
+    const a = _azPlayer();
+    if (a._unlocked) return;
+    a.src = _SILENT_WAV;
+    const p = a.play();
+    if (p && p.then) p.then(() => { a._unlocked = true; }).catch(() => {});
+  } catch(e) {}
+}
 function azureStop() {
   if (_azAbort) { _azAbort.abort(); _azAbort = null; }
-  if (_azAudio) { try { _azAudio.pause(); } catch(e) {} _azAudio = null; }
+  if (_azAudio) {
+    const a = _azAudio; _azAudio = null;
+    try { a.onended = null; a.onerror = null; a.pause(); } catch(e) {}
+    if (a.src && a.src.indexOf('blob:') === 0) { try { URL.revokeObjectURL(a.src); } catch(e) {} }
+  }
   try { speechSynthesis.cancel(); } catch(e) {}
 }
 async function azureSpeak(text, { rate='0%', speakLang='en', onStart, onEnd, onError }={}) {
@@ -188,18 +208,18 @@ async function azureSpeak(text, { rate='0%', speakLang='en', onStart, onEnd, onE
     const blob = await res.blob();
     if (ctrl.signal.aborted) return true;
     const url = URL.createObjectURL(blob);
-    const audio = new Audio(url);
+    const audio = _azPlayer();
+    audio.src = url;
     _azAudio = audio;
     if (onStart) onStart(audio);
-    audio.onended = () => { URL.revokeObjectURL(url); if (_azAudio === audio) _azAudio = null; if (onEnd) onEnd(); };
-    audio.onerror = () => { URL.revokeObjectURL(url); if (_azAudio === audio) _azAudio = null; if (onError) onError(); };
+    audio.onended = () => { URL.revokeObjectURL(url); audio.onended = null; audio.onerror = null; if (_azAudio === audio) _azAudio = null; if (onEnd) onEnd(); };
+    audio.onerror = () => { URL.revokeObjectURL(url); audio.onended = null; audio.onerror = null; if (_azAudio === audio) _azAudio = null; if (onError) onError(); };
     await audio.play();
     return true;
   } catch(e) {
     if (e.name === 'AbortError') return true;
     _azToken = null;
-    if (onError) onError(e);
-    return false;
+    return false;   // 不呼叫 onError:讓 speakSmart 退回瀏覽器 TTS 接手,連續播放不因 Azure 失敗而中斷
   }
 }
 
@@ -324,6 +344,7 @@ function CardView({ card, idx, total, onManualSpeak }) {
 
   // 單字發音永遠是英文(點的是英文原文裡的單字)
   const speakWord = React.useCallback((word) => {
+    azureUnlock();
     speakSmart(word, { speakLang:'en', azRate:'-15%', sysRate:0.82 });
   }, []);
 
@@ -332,6 +353,7 @@ function CardView({ card, idx, total, onManualSpeak }) {
     e.stopPropagation();
     if (speaking) { azureStop(); audioRef.current = null; setSpeaking(false); return; }
     if (onManualSpeak) onManualSpeak();   // 手動朗讀時先停掉連續播放,避免兩個聲音疊在一起
+    azureUnlock();
     setSpeaking(true);
     const L = speakLangOf(card, lang);
     await speakSmart(speakTextOf(card, lang), {
@@ -732,7 +754,7 @@ function App() {
       if (e.key === "ArrowRight" || e.key === "ArrowDown") { stopPlay(); go(idx + 1); }
       if (e.key === "ArrowLeft" || e.key === "ArrowUp") { stopPlay(); go(idx - 1); }
       if (e.key === "Home") { stopPlay(); goTop(); }
-      if (e.key === " ") { e.preventDefault(); playing ? stopPlay() : setPlaying(true); }
+      if (e.key === " ") { e.preventDefault(); if (playing) stopPlay(); else { azureUnlock(); setPlaying(true); } }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
@@ -762,7 +784,7 @@ function App() {
         <div style={{ padding:"0 32px", marginBottom:"16px" }}>
           <div style={{ marginBottom:"4px" }}>
             <h1 className="masthead-title" style={{ fontSize:"32px" }}>Mo's Feed</h1>
-            <span className="running-header" style={{ display:"block", marginTop:"4px" }}><span style={{ opacity:0.85 }}>updated 08/03/2026</span><span style={{ opacity:0.75, marginLeft:"10px" }}>v6.0</span></span>
+            <span className="running-header" style={{ display:"block", marginTop:"4px" }}><span style={{ opacity:0.85 }}>updated 08/03/2026</span><span style={{ opacity:0.75, marginLeft:"10px" }}>v6.1</span></span>
           </div>
           <div className="rule" />
         </div>
@@ -809,7 +831,7 @@ function App() {
         <button className="nav-btn" onClick={() => { stopPlay(); go(idx - 1); }} disabled={isFlow || idx === 0}>←</button>
         <button className="nav-btn nav-btn-lang" onClick={cyclePlayLang} disabled={isFlow}
           title={"連續播放語言：" + {zh:"中文",en:"English",ja:"日本語"}[playLang] + "（點一下切換）"}>{ {zh:"中",en:"EN",ja:"日"}[playLang] }</button>
-        <button className={"nav-btn nav-btn-icon" + (playing ? " playing" : "")} onClick={() => playing ? stopPlay() : setPlaying(true)}
+        <button className={"nav-btn nav-btn-icon" + (playing ? " playing" : "")} onClick={() => { if (playing) stopPlay(); else { azureUnlock(); setPlaying(true); } }}
           disabled={isFlow || atEnd} title={playing ? "停止連續播放" : "連續播放（" + {zh:"中文",en:"English",ja:"日本語"}[playLang] + "）"}>{playing ? "❚❚" : "▶"}</button>
         <span className="nav-count">{isFlow ? "live · tradingview" : atEnd ? `${total}/${total}` : `${idx + 1} / ${total}`}</span>
         <button className="nav-btn nav-btn-icon" onClick={() => { stopPlay(); goTop(); }} disabled={isFlow || idx === 0} title="回到第一張">⤒</button>
