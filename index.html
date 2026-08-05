@@ -181,33 +181,42 @@ function azureStop() {
   }
   try { speechSynthesis.cancel(); } catch(e) {}
 }
-async function azureSpeak(text, { rate='0%', speakLang='en', onStart, onEnd, onError }={}) {
+// 只合成、不播放:回傳音訊 blob URL。連續播放靠它「唸這張的同時預抓下一張」,
+// 唸完才能零延遲接播 — iOS 背景會凍結 timer 與網路,唸完後再打 API 就來不及了。
+async function _azSynthUrl(text, { rate='0%', speakLang='en', tailMs=0, signal }={}) {
   const key = localStorage.getItem('mf_azureKey') || '';
+  if (!key) return null;
   const region = localStorage.getItem('mf_azureRegion') || 'eastus';
   const conf = VOICE_CONF[speakLang] || VOICE_CONF.en;
   const voice = localStorage.getItem(conf.lsKey) || conf.fallback;
-  if (!key) return false;
+  const token = await _getAzToken(key, region, signal);
+  const style = localStorage.getItem(conf.styleKey) || '';
+  const useStyle = style && STYLE_VOICES.has(voice);
+  const body = _splitSentences(text).map(_xmlEsc).join(`<break time='260ms'/>`);
+  const inner = `<prosody rate='${rate}'>${body}</prosody>`;
+  const styled = useStyle ? `<mstts:express-as style='${style}'>${inner}</mstts:express-as>` : inner;
+  // xml:lang 跟著嗓音本身的 locale 走(選了大陸腔就該是 zh-CN,不是介面的 zh-TW)
+  const vLocale = (voice.match(/^[a-z]{2}-[A-Z]{2}/) || [conf.locale])[0];
+  // 卡與卡之間的停頓直接燒進音檔尾端:背景時 setTimeout 會被 iOS 凍結,不能靠 timer 停頓
+  const silence = tailMs > 0 ? `<mstts:silence type='Tailing-exact' value='${tailMs}ms'/>` : '';
+  const ssml = `<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xmlns:mstts='http://www.w3.org/2001/mstts' xml:lang='${vLocale}'><voice name='${voice}'>${silence}${styled}</voice></speak>`;
+  const res = await fetch(`https://${region}.tts.speech.microsoft.com/cognitiveservices/v1`, {
+    method:'POST', signal,
+    headers:{'Authorization':'Bearer '+token,'Content-Type':'application/ssml+xml','X-Microsoft-OutputFormat':'audio-16khz-128kbitrate-mono-mp3'},
+    body:ssml
+  });
+  if (!res.ok) throw new Error('TTS ' + res.status);
+  const blob = await res.blob();
+  return URL.createObjectURL(blob);
+}
+async function azureSpeak(text, { rate='0%', speakLang='en', tailMs=0, preUrl=null, onStart, onEnd, onError }={}) {
+  if (!preUrl && !(localStorage.getItem('mf_azureKey') || '')) return false;
   azureStop();
   const ctrl = new AbortController(); _azAbort = ctrl;
   try {
-    const token = await _getAzToken(key, region, ctrl.signal);
-    const style = localStorage.getItem(conf.styleKey) || '';
-    const useStyle = style && STYLE_VOICES.has(voice);
-    const body = _splitSentences(text).map(_xmlEsc).join(`<break time='260ms'/>`);
-    const inner = `<prosody rate='${rate}'>${body}</prosody>`;
-    const styled = useStyle ? `<mstts:express-as style='${style}'>${inner}</mstts:express-as>` : inner;
-    // xml:lang 跟著嗓音本身的 locale 走(選了大陸腔就該是 zh-CN,不是介面的 zh-TW)
-    const vLocale = (voice.match(/^[a-z]{2}-[A-Z]{2}/) || [conf.locale])[0];
-    const ssml = `<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xmlns:mstts='http://www.w3.org/2001/mstts' xml:lang='${vLocale}'><voice name='${voice}'>${styled}</voice></speak>`;
-    const res = await fetch(`https://${region}.tts.speech.microsoft.com/cognitiveservices/v1`, {
-      method:'POST', signal:ctrl.signal,
-      headers:{'Authorization':'Bearer '+token,'Content-Type':'application/ssml+xml','X-Microsoft-OutputFormat':'audio-16khz-128kbitrate-mono-mp3'},
-      body:ssml
-    });
-    if (!res.ok) throw new Error('TTS ' + res.status);
-    const blob = await res.blob();
-    if (ctrl.signal.aborted) return true;
-    const url = URL.createObjectURL(blob);
+    const url = preUrl || await _azSynthUrl(text, { rate, speakLang, tailMs, signal: ctrl.signal });
+    if (!url) return false;
+    if (ctrl.signal.aborted) { try { URL.revokeObjectURL(url); } catch(e) {} return true; }
     const audio = _azPlayer();
     audio.src = url;
     _azAudio = audio;
@@ -223,11 +232,17 @@ async function azureSpeak(text, { rate='0%', speakLang='en', onStart, onEnd, onE
   }
 }
 
+// 預先合成下一張的音訊(不播放、不動當前播放的 abort controller);失敗回 null,播放時會再試或退回瀏覽器 TTS
+async function speakPrefetch(rawText, { speakLang='zh', azRate='0%', tailMs=0 }={}) {
+  try { return await _azSynthUrl(normalizeForSpeech(rawText, speakLang), { rate: azRate, speakLang, tailMs }); }
+  catch(e) { _azToken = null; return null; }
+}
+
 // 統一朗讀入口:Azure 優先,沒 key 或失敗就退回瀏覽器 TTS;兩者都依 speakLang 挑對應語系嗓音
-async function speakSmart(rawText, { speakLang='zh', azRate='0%', sysRate=1.0, onStart, onEnd, onError }={}) {
+async function speakSmart(rawText, { speakLang='zh', azRate='0%', sysRate=1.0, tailMs=0, preUrl=null, onStart, onEnd, onError }={}) {
   const conf = VOICE_CONF[speakLang] || VOICE_CONF.en;
   const text = normalizeForSpeech(rawText, speakLang);
-  const ok = await azureSpeak(text, { rate:azRate, speakLang, onStart, onEnd, onError });
+  const ok = await azureSpeak(text, { rate:azRate, speakLang, tailMs, preUrl, onStart, onEnd, onError });
   if (ok) return;
   speechSynthesis.cancel();
   const u = new SpeechSynthesisUtterance(text);
@@ -243,7 +258,7 @@ async function speakSmart(rawText, { speakLang='zh', azRate='0%', sysRate=1.0, o
   };
   if (speechSynthesis.getVoices().length > 0) pick();
   else await new Promise(r => { speechSynthesis.onvoiceschanged = () => { pick(); speechSynthesis.onvoiceschanged = null; r(); }; setTimeout(r, 600); });
-  u.onend = () => { if (onEnd) onEnd(); };
+  u.onend = () => { if (onEnd) { if (tailMs > 0) setTimeout(onEnd, tailMs); else onEnd(); } };   // 瀏覽器 TTS 沒有音檔尾端靜音,停頓用 timer 補(僅前景有效)
   u.onerror = () => { if (onError) onError(); };
   if (onStart) onStart(null);
   speechSynthesis.speak(u);
@@ -710,7 +725,13 @@ function App() {
   const goTop = () => { setDir(-1); setIdx(0); try { localStorage.setItem(lsKey, "0"); } catch(e) {} };
 
   // ===== 連續播放:唸完一張自動翻下一張,一路唸到最後 =====
+  // v6.4 背景播放:整條鏈不再依賴 setTimeout、也不在唸完後才 fetch —
+  // 唸這張的同時預抓下一張音訊,onended 立刻換 src 接播,卡間 0.6 秒停頓燒進音檔尾端。
+  // iOS 背景會凍結 timer 與網路,但「音訊播完 → 馬上接著播下一顆」這條路是放行的。
   const playTokenRef = React.useRef(0);
+  const idxRef = React.useRef(idx);
+  React.useEffect(() => { idxRef.current = idx; }, [idx]);
+  const flowCtlRef = React.useRef(null);   // 鎖屏 Media Session 的上一則/下一則用
 
   const stopPlay = React.useCallback(() => {
     playTokenRef.current++;   // 讓還在飛的 onEnd 失效,不會誤翻頁
@@ -720,29 +741,83 @@ function App() {
 
   React.useEffect(() => {
     if (!playing) return;
-    if (isFlow || atEnd || !cards[idx]) { setPlaying(false); return; }
+    if (isFlow || atEnd || !cards[idxRef.current]) { setPlaying(false); return; }
     const token = ++playTokenRef.current;
-    const card = cards[idx];
+    const alive = () => playTokenRef.current === token;
+    let prefetch = null;   // { i, promise } 下一張的音訊 blob URL,唸完零延遲接播
+
+    const azRate = playLang === 'zh' ? '-8%' : '-5%';
+    const sysRate = playLang === 'zh' ? 0.95 : 0.88;
     // 開車情境:先報位置(中文再加頻道與標籤),讓耳朵知道現在是哪一則,再唸內文
-    const body = playLang === 'en' ? card.en : playLang === 'ja' ? (card.ja || card.en) : card.zh;
-    const intro = playLang === 'en' ? `Number ${idx + 1} of ${total}. `
-                : playLang === 'ja' ? `${idx + 1}／${total}。`
-                : `第 ${idx + 1} 則，${card.channel}，${card.tag || ""}。`;
-    const text = intro + body;
-    const advance = () => {
-      if (playTokenRef.current !== token) return;
-      if (idx + 1 >= total) { setPlaying(false); go(total); return; }
-      go(idx + 1);
+    const textOf = (i) => {
+      const card = cards[i];
+      const body = playLang === 'en' ? card.en : playLang === 'ja' ? (card.ja || card.en) : card.zh;
+      const intro = playLang === 'en' ? `Number ${i + 1} of ${total}. `
+                  : playLang === 'ja' ? `${i + 1}／${total}。`
+                  : `第 ${i + 1} 則，${card.channel}，${card.tag || ""}。`;
+      return intro + body;
     };
-    speakSmart(text, {
-      speakLang: playLang,
-      azRate: playLang === 'zh' ? '-8%' : '-5%',
-      sysRate: playLang === 'zh' ? 0.95 : 0.88,
-      onEnd: () => setTimeout(advance, 600),   // 卡與卡之間留一點呼吸
-      onError: () => { if (playTokenRef.current === token) setPlaying(false); }
-    });
-    return () => { playTokenRef.current++; azureStop(); };
-  }, [playing, idx, total, isFlow, atEnd, playLang]);
+    const setMedia = (i) => {   // 鎖屏畫面顯示現在唸到哪一則
+      if (!('mediaSession' in navigator)) return;
+      try {
+        const card = cards[i];
+        navigator.mediaSession.metadata = new MediaMetadata({
+          title: (i + 1) + "/" + total + "・" + card.channel + (card.tag ? "・" + card.tag : ""),
+          artist: "Mo's Feed",
+          artwork: [{ src: "apple-touch-icon.png", sizes: "180x180", type: "image/png" }]
+        });
+        navigator.mediaSession.playbackState = 'playing';
+      } catch(e) {}
+    };
+
+    const playCard = async (i) => {
+      if (!alive()) return;
+      if (i >= total) { setPlaying(false); setDir(1); setIdx(total); try { localStorage.setItem(lsKey, String(total)); } catch(e) {} return; }
+      setDir(1); setIdx(i); idxRef.current = i;
+      try { localStorage.setItem(lsKey, String(i)); } catch(e) {}
+      setMedia(i);
+      let preUrl = null;
+      if (prefetch && prefetch.i === i) preUrl = await prefetch.promise;
+      prefetch = null;
+      if (!alive()) { if (preUrl) { try { URL.revokeObjectURL(preUrl); } catch(e) {} } return; }
+      if (i + 1 < total) prefetch = { i: i + 1, promise: speakPrefetch(textOf(i + 1), { speakLang: playLang, azRate, tailMs: 600 }) };
+      speakSmart(textOf(i), {
+        speakLang: playLang, azRate, sysRate, tailMs: 600, preUrl,
+        onEnd: () => { if (alive()) playCard(i + 1); },
+        onError: () => { if (alive()) setPlaying(false); }
+      });
+    };
+
+    flowCtlRef.current = {   // 鎖屏的上一則/下一則:跳到目標卡重新接鏈,prefetch 對得上就直接用
+      next: () => { if (alive()) playCard(Math.min(idxRef.current + 1, total)); },
+      prev: () => { if (alive()) playCard(Math.max(idxRef.current - 1, 0)); },
+    };
+    playCard(idxRef.current);
+    return () => {
+      playTokenRef.current++;
+      azureStop();
+      flowCtlRef.current = null;
+      const p = prefetch; prefetch = null;
+      if (p) p.promise.then(u => { if (u) { try { URL.revokeObjectURL(u); } catch(e) {} } });
+    };
+  }, [playing, playLang, todaySub]);
+
+  // 鎖屏/耳機控制:播放、暫停、上一則、下一則(開車時不用點亮螢幕)
+  React.useEffect(() => {
+    if (!('mediaSession' in navigator)) return;
+    const ms = navigator.mediaSession;
+    const set = (a, fn) => { try { ms.setActionHandler(a, fn); } catch(e) {} };
+    if (!playing) {
+      try { ms.playbackState = 'none'; } catch(e) {}
+      ['play','pause','nexttrack','previoustrack'].forEach(a => set(a, null));
+      return;
+    }
+    set('pause', () => { try { if (_azEl) _azEl.pause(); ms.playbackState = 'paused'; } catch(e) {} });
+    set('play',  () => { try { if (_azEl) _azEl.play();  ms.playbackState = 'playing'; } catch(e) {} });
+    set('nexttrack',     () => { if (flowCtlRef.current) flowCtlRef.current.next(); });
+    set('previoustrack', () => { if (flowCtlRef.current) flowCtlRef.current.prev(); });
+    return () => { ['play','pause','nexttrack','previoustrack'].forEach(a => set(a, null)); };
+  }, [playing]);
 
   // 切頻道 / 進資金流向就停播
   React.useEffect(() => { stopPlay(); }, [todaySub]);
@@ -784,7 +859,7 @@ function App() {
         <div style={{ padding:"0 32px", marginBottom:"16px" }}>
           <div style={{ marginBottom:"4px" }}>
             <h1 className="masthead-title" style={{ fontSize:"32px" }}>Mo's Feed</h1>
-            <span className="running-header" style={{ display:"block", marginTop:"4px" }}><span style={{ opacity:0.85 }}>updated 08/05/2026</span><span style={{ opacity:0.75, marginLeft:"10px" }}>v6.3</span></span>
+            <span className="running-header" style={{ display:"block", marginTop:"4px" }}><span style={{ opacity:0.85 }}>updated 08/05/2026</span><span style={{ opacity:0.75, marginLeft:"10px" }}>v6.4</span></span>
           </div>
           <div className="rule" />
         </div>
