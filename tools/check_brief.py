@@ -33,11 +33,12 @@ HTML = os.path.join(ROOT, 'index.html')
 BASELINE = os.path.join(ROOT, 'tools', 'zh_baseline.txt')
 ALLOW = os.path.join(ROOT, 'tools', 'zh_allow.txt')
 
-# 9 頻道 30 卡(CLAUDE.md 規格)
+# 10 頻道 32 卡(CLAUDE.md 規格;2026-08-25 加入政要持股 2 卡)
 CHANNELS = {
     '隔夜盤勢': 4, '財報速報': 3, '總經政策': 3, '產業風向': 3, '小型股風雲': 5,
-    '忽視雷達': 6, '內部人動向': 3, '本週事件': 2, '今日評估': 1,
+    '忽視雷達': 6, '內部人動向': 3, '政要持股': 2, '本週事件': 2, '今日評估': 1,
 }
+TOTAL_CARDS = sum(CHANNELS.values())
 REQUIRED = ('id', 'channel', 'tag', 'color', 'en', 'zh', 'url', 'stocks')
 
 # 簡體字與日文新字體 —— 出現在繁體內文即為錯,無例外
@@ -161,8 +162,8 @@ def check():
         return 1
 
     # ---- 結構 ----
-    if len(cards) != 30:
-        errors.append(f'卡片數為 {len(cards)},應為 30')
+    if len(cards) != TOTAL_CARDS:
+        errors.append(f'卡片數為 {len(cards)},應為 {TOTAL_CARDS}')
     dist = collections.Counter(c.get('channel', '?') for c in cards)
     for ch, want in CHANNELS.items():
         if dist.get(ch, 0) != want:

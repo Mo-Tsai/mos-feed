@@ -311,8 +311,13 @@ const CARDS = [
   {"id": "eval_0", "channel": "今日評估", "tag": "值得深想", "color": "#E8A838", "status": "DISCUSS · 讀完到最後一頁，複製 PROMPT 找 CLAUDE 復盤", "stocks": [{"t": "NVDA", "n": "週三盤後，舊領導的試金石"}, {"t": "SHY", "n": "短債ETF，降息與升息兩種定價的交會點"}, {"t": "XLV", "n": "醫療類股，新領導的代表"}], "en": "The one thing worth noticing today is not any single headline but a contradiction: the market is currently pricing both a September cut at roughly 85% and a September hike at roughly one-in-three. Those are incompatible, and all three inputs that could resolve them, Wednesday's PCE, Wednesday night's Nvidia print and Friday's Warsh keynote, land inside 72 hours. Meanwhile the rotation out of chips and into healthcare and small caps has been running for two months without waiting for any of them. The open question: if the rotation is already happening while the macro is unresolved, is it a bet on the outcome, or a sign that the outcome matters less than everyone assumes?", "zh": "今天最值得注意的不是某一條新聞，而是一個矛盾：市場正同時把「9 月降息約 85%」與「9 月升息約三分之一」兩種相反劇本定進去。這兩者不可能同時成立，而能解開它們的三個輸入——週三的 PCE、週三夜的輝達財報、週五的 Warsh 演講——全擠在七十二小時內。另一方面，從晶片轉向醫療與小型股的輪動已經跑了兩個月，根本沒等這些答案。開放式問題：如果輪動在總經未明朗時就已發生，那它是對結果的賭注，還是在告訴你「結果沒有大家以為的那麼重要」？", "url": "https://www.cnbc.com/2026/08/23/stock-market-today-live-updates.html"}
 ];
 
-// 「資金流向」「政要績效」是特殊分頁:嵌 TradingView 即時元件,不吃 CARDS、每日排程不用動它們
+// 「資金流向」「政要績效」是特殊分頁,不吃 CARDS、卡片版型完全不適用
 const TODAY_SUBS = ["全部", ...CHANNELS.map(c => c.key), "資金流向", "政要績效"];
+
+// 個別議員申報彙整。來源是眾議院書記官的官方 PTR 索引與 PDF,由 tools/capitol_roster.py
+// 產出(那兩個網址沒有 CORS 標頭,瀏覽器端抓不到,所以資料要先算好烘進來)。
+// 每日排程跑 `python tools/capitol_roster.py --write` 更新這一行,不要手改。
+const CAPITOL_ROSTER = {"updated":"2026-08-25","window":90,"source":"https://disclosures-clerk.house.gov/FinancialDisclosure","filings":143,"skipped_scanned":20,"roster":[{"name":"Gilbert Cisneros","dst":"CA31","n":121,"buy":95,"sell":25,"lo":331121,"hi":2265000,"distinct":88,"top":["LPLA","BSX","AMD","DASH"],"last":"2026-07-02","url":"https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2026/20034906.pdf"},{"name":"Julie Johnson","dst":"TX32","n":75,"buy":37,"sell":37,"lo":75075,"hi":1125000,"distinct":41,"top":["AOS","ADBE","A","ALK"],"last":"2026-08-05","url":"https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2026/20035035.pdf"},{"name":"April McClain Delaney","dst":"MD06","n":64,"buy":60,"sell":3,"lo":288064,"hi":1520000,"distinct":15,"top":["HUBB","LTH","BWXT","CHRW"],"last":"2026-08-03","url":"https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2026/20035118.pdf"},{"name":"David J. Taylor","dst":"OH02","n":36,"buy":25,"sell":11,"lo":64036,"hi":610000,"distinct":18,"top":["GOOGL","T","KR","MSFT"],"last":"2026-08-20","url":"https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2026/20035289.pdf"},{"name":"Michael Rulli","dst":"OH06","n":32,"buy":14,"sell":18,"lo":32032,"hi":480000,"distinct":18,"top":["GOOGL","AAPL","LLY","META"],"last":"2026-08-07","url":"https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2026/20035147.pdf"},{"name":"Richard Dean McCormick","dst":"GA06","n":31,"buy":6,"sell":25,"lo":31031,"hi":465000,"distinct":26,"top":["ABT","LHX","ICE","APD"],"last":"2026-08-14","url":"https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2026/20035204.pdf"},{"name":"Josh Gottheimer","dst":"NJ05","n":30,"buy":18,"sell":12,"lo":1526030,"hi":3390000,"distinct":24,"top":["MSFT","FN","PANW","GOOGN"],"last":"2026-08-10","url":"https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2026/20035186.pdf"},{"name":"Maria Elvira Salazar","dst":"FL27","n":30,"buy":22,"sell":8,"lo":247030,"hi":955000,"distinct":13,"top":["BEP","BIIB","DDOG","IBM"],"last":"2026-08-07","url":"https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2026/20035138.pdf"},{"name":"Jared Moskowitz","dst":"FL23","n":20,"buy":15,"sell":5,"lo":20020,"hi":300000,"distinct":10,"top":["AMAT","SPGI","COR","GILD"],"last":"2026-07-26","url":"https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2026/20034963.pdf"},{"name":"Dan Newhouse","dst":"WA04","n":19,"buy":12,"sell":7,"lo":19019,"hi":285000,"distinct":19,"top":["ACN","ADBE","AMCR","APH"],"last":"2026-07-17","url":"https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2026/20034998.pdf"},{"name":"Kevin Hern","dst":"OK01","n":16,"buy":0,"sell":9,"lo":284016,"hi":885000,"distinct":11,"top":["CTRA","DVN","XOM","OGN"],"last":"2026-08-12","url":"https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2026/20035196.pdf"},{"name":"Tim Walberg","dst":"MI05","n":15,"buy":13,"sell":2,"lo":155015,"hi":575000,"distinct":13,"top":["FSSL","UA","AMZN","AAPL"],"last":"2026-06-03","url":"https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2026/20034660.pdf"},{"name":"Thomas H. Kean","dst":"NJ07","n":14,"buy":11,"sell":3,"lo":14014,"hi":210000,"distinct":9,"top":["EQT","ESAB","GIL","AMCR"],"last":"2026-08-18","url":"https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2026/20035273.pdf"},{"name":"Matthew Robert Van Epps","dst":"TN07","n":13,"buy":0,"sell":13,"lo":27013,"hi":230000,"distinct":13,"top":["GOOGL","AMZN","AAPL","XOM"],"last":"2026-06-17","url":"https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2026/20034807.pdf"},{"name":"Richard W. Allen","dst":"GA12","n":12,"buy":4,"sell":8,"lo":159012,"hi":510000,"distinct":10,"top":["ABT","INTU","AMP","PG"],"last":"2026-08-18","url":"https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2026/20035260.pdf"},{"name":"Cleo Fields","dst":"LA06","n":9,"buy":9,"sell":0,"lo":9009,"hi":135000,"distinct":6,"top":["NVDA","MSFT","AAPL","GOOG"],"last":"2026-07-30","url":"https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2026/20035023.pdf"},{"name":"Christian D. Menefee","dst":"TX18","n":8,"buy":0,"sell":8,"lo":92008,"hi":330000,"distinct":2,"top":["PINS","BRK.B"],"last":"2026-08-07","url":"https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2026/20035157.pdf"},{"name":"Jonathan Jackson","dst":"IL01","n":8,"buy":3,"sell":5,"lo":85008,"hi":275000,"distinct":7,"top":["THC","ORLY","SPG","V"],"last":"2026-07-15","url":"https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2026/20034908.pdf"},{"name":"Nancy Pelosi","dst":"CA11","n":8,"buy":8,"sell":0,"lo":5250008,"hi":19500000,"distinct":3,"top":["BE","INTC","UBER"],"last":"2026-08-21","url":"https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2026/20035143.pdf"},{"name":"Daniel Crenshaw","dst":"TX02","n":7,"buy":2,"sell":5,"lo":7007,"hi":105000,"distinct":5,"top":["META","GOOG","AMZN","AAPL"],"last":"2026-07-16","url":"https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2026/20035024.pdf"},{"name":"Lloyd Doggett","dst":"TX37","n":6,"buy":6,"sell":0,"lo":6006,"hi":90000,"distinct":6,"top":["PG","HD","IBM","JNJ"],"last":"2026-08-05","url":"https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2026/20035136.pdf"},{"name":"Michael Patrick Guest","dst":"MS03","n":5,"buy":0,"sell":3,"lo":5005,"hi":75000,"distinct":4,"top":["XOM","ABNB","CVX","ELF"],"last":"2026-08-14","url":"https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2026/20035130.pdf"},{"name":"Mike Kelly","dst":"PA16","n":5,"buy":0,"sell":5,"lo":33005,"hi":145000,"distinct":5,"top":["BMY","CMCSA","ABT","PEP"],"last":"2026-08-12","url":"https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2026/20035203.pdf"},{"name":"Carol Devine Miller","dst":"WV01","n":4,"buy":0,"sell":4,"lo":60004,"hi":200000,"distinct":4,"top":["PFE","DGX","TGT","USB"],"last":"2026-08-13","url":"https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2026/20033779.pdf"},{"name":"Rick Larsen","dst":"WA02","n":4,"buy":2,"sell":2,"lo":4004,"hi":60000,"distinct":4,"top":["ABT","APH","MCK","SPGI"],"last":"2026-07-12","url":"https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2026/20034977.pdf"}]};
 
 // 內容指紋:CARDS 一換(每日排程更新)就變,閱讀進度 key 跟著換 → 新的一天自動從第 1 張開始讀。
 // 排程只要照常抽換 CARDS 就好,不用額外維護日期。
@@ -679,16 +684,73 @@ function PerfView() {
     obs.observe(document.body, { attributes: true, attributeFilter: ["data-theme"] });
     return () => { obs.disconnect(); container.innerHTML = ""; };
   }, []);
+  const R = CAPITOL_ROSTER;
+  const money = n => n >= 1000000 ? "$" + (n / 1000000).toFixed(1) + "M"
+                   : n >= 1000 ? "$" + Math.round(n / 1000) + "k" : "$" + n;
   return (
-    <div style={{ height:"100%", display:"flex", flexDirection:"column", padding:"12px 16px 16px" }}>
+    <div style={{ height:"100%", display:"flex", flexDirection:"column", padding:"12px 16px 16px", overflowY:"auto" }}>
       <div style={{ display:"flex", alignItems:"baseline", justifyContent:"space-between", padding:"0 16px 6px" }}>
         <span style={{ fontFamily:"'Courier New',monospace", fontSize:"9px", letterSpacing:"0.18em", textTransform:"uppercase", color:"var(--text-tertiary)" }}>政要交易 ETF · 近一年</span>
-        <a href="https://www.quiverquant.com/congresstrading/" target="_blank" rel="noopener noreferrer" className="source-link">個別議員排行 ↗</a>
+        <a href="https://www.quiverquant.com/congresstrading/" target="_blank" rel="noopener noreferrer" className="source-link">Quiver 排行 ↗</a>
       </div>
       <div style={{ padding:"0 16px 10px", fontSize:"11px", lineHeight:1.6, color:"var(--text-tertiary)" }}>
         NANC 跟著民主黨籍議員的申報建倉、GOP 跟著共和黨籍（原 KRUZ），兩檔都吃 45 天申報延遲後的資料。跟 SPY 的差距就是「照著政要申報買」的真實代價與報酬。
       </div>
-      <div className="tradingview-widget-container" ref={ref} style={{ flex:1, minHeight:0 }} />
+      <div className="tradingview-widget-container" ref={ref} style={{ height:"300px", flexShrink:0 }} />
+
+      {R.roster.length > 0 && (
+        <div style={{ paddingTop:"20px" }}>
+          <div style={{ display:"flex", alignItems:"baseline", justifyContent:"space-between", padding:"0 16px 6px" }}>
+            <span style={{ fontFamily:"'Courier New',monospace", fontSize:"9px", letterSpacing:"0.18em", textTransform:"uppercase", color:"var(--text-tertiary)" }}>個別議員 · 近 {R.window} 天申報</span>
+            <span style={{ fontSize:"10px", color:"var(--text-tertiary)" }}>更新 {R.updated}</span>
+          </div>
+          <div style={{ padding:"0 16px 12px", fontSize:"11px", lineHeight:1.6, color:"var(--text-tertiary)" }}>
+            眾議院 STOCK Act 定期交易報告（PTR）原始申報書彙整，共 {R.filings} 份、其中 {R.skipped_scanned} 份是紙本掃描件無法解析。金額只有級距沒有數字，絕大多數落在最低的 $1,001–$15,000，所以下面顯示的是<span style={{ color:"var(--text-secondary, inherit)" }}>申報區間</span>而不是實際金額——別把它當成真實部位大小。點議員名字可看原始申報書。
+          </div>
+          <div style={{ overflowX:"auto", padding:"0 16px" }}>
+            <table style={{ width:"100%", borderCollapse:"collapse", fontSize:"12px" }}>
+              <thead>
+                <tr style={{ color:"var(--text-tertiary)", fontFamily:"'Courier New',monospace", fontSize:"9px", letterSpacing:"0.1em", textTransform:"uppercase" }}>
+                  <th style={{ textAlign:"left",  padding:"6px 8px 6px 0", borderBottom:"1px solid var(--border, rgba(128,128,128,0.25))", whiteSpace:"nowrap" }}>議員</th>
+                  <th style={{ textAlign:"right", padding:"6px 8px", borderBottom:"1px solid var(--border, rgba(128,128,128,0.25))", whiteSpace:"nowrap" }}>筆數</th>
+                  <th style={{ textAlign:"right", padding:"6px 8px", borderBottom:"1px solid var(--border, rgba(128,128,128,0.25))", whiteSpace:"nowrap" }}>買 / 賣</th>
+                  <th style={{ textAlign:"right", padding:"6px 8px", borderBottom:"1px solid var(--border, rgba(128,128,128,0.25))", whiteSpace:"nowrap" }}>申報區間</th>
+                  <th style={{ textAlign:"left",  padding:"6px 8px", borderBottom:"1px solid var(--border, rgba(128,128,128,0.25))", whiteSpace:"nowrap" }}>常見標的</th>
+                  <th style={{ textAlign:"right", padding:"6px 0 6px 8px", borderBottom:"1px solid var(--border, rgba(128,128,128,0.25))", whiteSpace:"nowrap" }}>最新申報</th>
+                </tr>
+              </thead>
+              <tbody>
+                {R.roster.map(r => (
+                  <tr key={r.name + r.dst}>
+                    <td style={{ padding:"7px 8px 7px 0", borderBottom:"1px solid var(--border, rgba(128,128,128,0.12))", whiteSpace:"nowrap" }}>
+                      <a href={r.url} target="_blank" rel="noopener noreferrer" style={{ color:"#B5654D", textDecoration:"none" }}>{r.name}</a>
+                      <span style={{ color:"var(--text-tertiary)", fontSize:"10px", marginLeft:"6px" }}>{r.dst}</span>
+                    </td>
+                    <td style={{ padding:"7px 8px", borderBottom:"1px solid var(--border, rgba(128,128,128,0.12))", textAlign:"right", fontVariantNumeric:"tabular-nums" }}>{r.n}</td>
+                    <td style={{ padding:"7px 8px", borderBottom:"1px solid var(--border, rgba(128,128,128,0.12))", textAlign:"right", fontVariantNumeric:"tabular-nums", whiteSpace:"nowrap" }}>
+                      <span style={{ color:"#6DB56D" }}>{r.buy}</span>
+                      <span style={{ color:"var(--text-tertiary)" }}> / </span>
+                      <span style={{ color:"#E05C5C" }}>{r.sell}</span>
+                    </td>
+                    <td style={{ padding:"7px 8px", borderBottom:"1px solid var(--border, rgba(128,128,128,0.12))", textAlign:"right", color:"var(--text-tertiary)", fontVariantNumeric:"tabular-nums", whiteSpace:"nowrap" }}>{money(r.lo)}–{money(r.hi)}</td>
+                    <td style={{ padding:"7px 8px", borderBottom:"1px solid var(--border, rgba(128,128,128,0.12))", whiteSpace:"nowrap" }}>
+                      {r.top.map(t => (
+                        <a key={t} href={"https://www.tradingview.com/symbols/" + t + "/"} target="_blank" rel="noopener noreferrer"
+                           style={{ color:"var(--text-secondary, inherit)", textDecoration:"none", marginRight:"7px", fontFamily:"'Courier New',monospace" }}>{t}</a>
+                      ))}
+                      <span style={{ color:"var(--text-tertiary)", fontSize:"10px" }}>共 {r.distinct} 檔</span>
+                    </td>
+                    <td style={{ padding:"7px 0 7px 8px", borderBottom:"1px solid var(--border, rgba(128,128,128,0.12))", textAlign:"right", color:"var(--text-tertiary)", whiteSpace:"nowrap" }}>{r.last}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div style={{ padding:"12px 16px 0", fontSize:"10px", lineHeight:1.6, color:"var(--text-tertiary)" }}>
+            只涵蓋眾議院；參議院走另一套 efdsearch 系統，尚未納入。買＋賣不一定等於筆數，差額是交換（exchange）類交易。
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -895,7 +957,7 @@ function App() {
         <div style={{ padding:"0 32px", marginBottom:"16px" }}>
           <div style={{ marginBottom:"4px" }}>
             <h1 className="masthead-title" style={{ fontSize:"32px" }}>Mo's Feed</h1>
-            <span className="running-header" style={{ display:"block", marginTop:"4px" }}><span style={{ opacity:0.85 }}>updated 08/25/2026</span><span style={{ opacity:0.75, marginLeft:"10px" }}>v8.7</span></span>
+            <span className="running-header" style={{ display:"block", marginTop:"4px" }}><span style={{ opacity:0.85 }}>updated 08/25/2026</span><span style={{ opacity:0.75, marginLeft:"10px" }}>v8.8</span></span>
           </div>
           <div className="rule" />
         </div>

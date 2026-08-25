@@ -1,0 +1,6 @@
+# capitol_roster.py 的 PTR PDF 快取。目前 123 份約 8.9MB，而且只會越長越大。
+# 這是純快取（刪掉會自動重抓），不該進 git，也不該讓 Google Drive 同步這麼多小檔。
+tools/.capitol_cache/
+
+__pycache__/
+*.pyc
