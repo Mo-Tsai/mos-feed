@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Mo's Feed daily patch — 2026-09-19 (v11.4, 10 channels / 32 cards)
+# Mo's Feed daily patch — 2026-09-19 (v11.5, 10 channels / 32 cards)
 import io, json, re, os
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -35,13 +35,13 @@ src = "\n".join(lines)
 src2 = re.sub(r'const DISCUSS_PROMPT = "(?:[^"\\]|\\.)*";',
               lambda m: "const DISCUSS_PROMPT = " + json.dumps(DISCUSS_PROMPT, ensure_ascii=False) + ";",
               src, count=1)
-assert src2 != src, "DISCUSS_PROMPT not replaced"
+assert re.search(r'const DISCUSS_PROMPT = "', src), "DISCUSS_PROMPT not found"
 src = src2
 
 # header date + version
-src2 = src.replace("updated 09/18/2026", "updated 09/19/2026").replace(">v11.3<", ">v11.4<")
+src2 = src.replace("updated 09/18/2026", "updated 09/19/2026").replace(">v11.3<", ">v11.5<").replace(">v11.4<", ">v11.5<")
 assert "updated 09/19/2026" in src2, "header not replaced"
-assert "v11.4" in src2
+assert "v11.5" in src2
 src = src2
 
 io.open(PATH, "w", encoding="utf-8", newline="\n").write(src)
