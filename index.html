@@ -331,7 +331,7 @@ const BRIEF_ID = (() => {
 const lsKeyFor = (sub) => "mosfeed_" + BRIEF_ID + "_" + sub;
 
 // ===== 討論 prompt(每日排程同步更新) =====
-const DISCUSS_PROMPT = "這是 2026/09/27 的 Mo's Feed 美股晨報重點，請幫我一起判讀：
+const DISCUSS_PROMPT = `這是 2026/09/27 的 Mo's Feed 美股晨報重點，請幫我一起判讀：
 
 1. 上週（9/21-9/25）四個指數走出兩個方向：標普 500 週線漲 1.2%、那斯達克漲 2.1%、道瓊漲 0.3%，三大指數都是三週以來第一次收紅，但羅素 2000 跌 0.8%，是唯一收黑的那一個。
 2. 債市的重點是振幅不是水位：十年期殖利率盤中觸及 5.228%（2007 年以來最高），週五收 5.18%；30 年期是 2004 年以來最高，而且這一輪賣壓是全球同步的，不是美國獨有。
@@ -342,7 +342,7 @@ const DISCUSS_PROMPT = "這是 2026/09/27 的 Mo's Feed 美股晨報重點，請
 
 請跟我討論：同一個 5% 以上的利率環境，大型科技把指數拉回紅盤、小型股獨自收黑，這種重新分配已經走了多遠？另外，今天雷達裡 CZFS（升息讓淨息差擴張）跟 SBLK（現貨運價與利率無關）都是「不怕升息」的型態，這兩檔跟 SGRY（高槓桿、還在淨損）相比，哪一種更值得在這個利率假設下往下追？
 
-忽視雷達池（Notion）：https://app.notion.com/p/6ae9be8507e24aaf85a9a8af4b69fcf0";
+忽視雷達池（Notion）：https://app.notion.com/p/6ae9be8507e24aaf85a9a8af4b69fcf0`;
 
 function getDateString() {
   return new Date().toLocaleDateString("en-US", { month:"short", day:"numeric", year:"numeric" }).toUpperCase();
