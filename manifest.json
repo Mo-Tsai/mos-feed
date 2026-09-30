@@ -1,0 +1,14 @@
+{
+  "name": "Mo's Feed",
+  "short_name": "Mo's Feed",
+  "description": "每日美股財經晨報與忽視雷達",
+  "lang": "zh-TW",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f5f1ea",
+  "theme_color": "#f5f1ea",
+  "icons": [
+    { "src": "apple-touch-icon.png", "sizes": "180x180", "type": "image/png", "purpose": "any" }
+  ]
+}

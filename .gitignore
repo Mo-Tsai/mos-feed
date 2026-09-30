@@ -4,3 +4,15 @@ tools/.capitol_cache/
 
 __pycache__/
 *.pyc
+
+# 每日排程的中間產物(cards_MMDD.json / patch_MMDD.py / prompt_MMDD.txt)一律寫進 _patches_archive/,不進版控、不部署。
+# 根目錄不該再長出這些檔案;萬一寫錯位置,這幾行讓它們不會被誤 commit。
+_patches_archive/
+/cards_*.json
+/patch_*.py
+/prompt_*.txt
+
+# 本機交接檔與 Claude 工作資料夾
+/交接_*.md
+.claude/
+轉換資料/
