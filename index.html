@@ -115,6 +115,9 @@
   .date-chip { flex-shrink:0; background:none; border:1px solid var(--divider); color:var(--text-tertiary); font-family:'Courier New',monospace; font-size:11px; letter-spacing:0.08em; padding:0 12px; min-height:38px; cursor:pointer; white-space:nowrap; }
   .date-chip.on { color:var(--text); border-color:var(--text-secondary); }
   .date-chip:hover { color:var(--text-secondary); }
+  .copy-btn { flex-shrink:0; background:none; border:1px solid var(--divider); color:var(--text-secondary); font-family:'Courier New',monospace; font-size:11px; letter-spacing:0.08em; padding:0 12px; min-height:40px; min-width:40px; cursor:pointer; white-space:nowrap; }
+  .copy-btn:hover { color:var(--text); border-color:var(--text-secondary); }
+  .sr-only { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
   .empty-note { font-family: system-ui, -apple-system, 'PingFang TC', sans-serif; font-size: 15px; line-height: 1.9; color: var(--text-secondary); padding: 24px 0; max-width: 32ch; }
   @media (prefers-reduced-motion: reduce) { * { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; } }
 </style>
@@ -206,8 +209,8 @@ const DISCUSS_PROMPT = `這是 2026/09/30 的 Mo's Feed 美股晨報重點，請
 忽視雷達池：https://app.notion.com/p/6ae9be8507e24aaf85a9a8af4b69fcf0`;
 
 // 頁首顯示的日期與版本(排程每天各換一次;這兩個字串在整份檔案裡各只能出現一次)
-const APP_META = { updated: "updated 09/30/2026", version: "v13.0" };
+const APP_META = { updated: "updated 09/30/2026", version: "v13.1" };
 </script>
-<script src="app.js?b=a12d804a"></script>
+<script src="app.js?b=f54a33e1"></script>
 </body>
 </html>

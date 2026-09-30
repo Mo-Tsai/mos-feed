@@ -130,6 +130,90 @@
     ls.set(FAV_KEY, JSON.stringify(a));
   }
   const cardUid = (c) => (c._date || "") + "|" + c.id;
+  const RADAR_LABELS = [
+    ["who", /(?:這家公司)?做什麼[:：]/],
+    ["ign", /(?:為什麼被忽視|它被忽視的原因|被忽視的原因)[:：]/],
+    ["chg", /(?:什麼正在改變|正在改變的是|正在改變的有[^:：]{0,12}|正在改變)[:：]/],
+    ["risk", /風險與反方論點[:：]/]
+  ];
+  function splitRadarZh(zh) {
+    const hits = [];
+    RADAR_LABELS.forEach(([k, re]) => {
+      const m = re.exec(zh);
+      if (m) hits.push({ k, s: m.index, e: m.index + m[0].length });
+    });
+    hits.sort((a, b) => a.s - b.s);
+    const out = { pre: (hits.length ? zh.slice(0, hits[0].s) : zh).trim() };
+    hits.forEach((h, i) => {
+      out[h.k] = zh.slice(h.e, i + 1 < hits.length ? hits[i + 1].s : zh.length).trim();
+    });
+    return out;
+  }
+  function radarText(card) {
+    const clean = (s) => (s || "").replace(/這是研究線索[，,]\s*不是投資建議。?/g, "").replace(/\s+/g, " ").trim();
+    const iso = (d8) => /^\d{8}$/.test(d8 || "") ? d8.slice(0, 4) + "-" + d8.slice(4, 6) + "-" + d8.slice(6, 8) : "";
+    const stocks = card.stocks || [];
+    const L = [];
+    L.push("代號：" + (stocks.map((s) => s.t).filter(Boolean).join("、") || "(無)"));
+    const sp = splitRadarZh(card.zh || "");
+    const structured = !!sp.ign;
+    if (structured) {
+      const who = sp.who || sp.pre;
+      if (who) L.push("公司：" + clean(who));
+      L.push("忽視原因：" + clean(sp.ign));
+      if (sp.chg) L.push("拐點證據：" + clean(sp.chg));
+      if (sp.risk) L.push("風險：" + clean(sp.risk));
+    } else {
+      if (stocks.length) L.push("公司：" + stocks.map((s) => s.t + " " + (s.n || "")).join("；").trim());
+      L.push("備註：" + clean(card.zh));
+    }
+    const vm = /下一個驗證點\s*(.+)$/.exec(card.status || "");
+    if (vm) L.push("下一個驗證點：" + vm[1].trim());
+    if (card.url) L.push("來源：" + card.url);
+    L.push("入池日：" + (iso(card._date) || iso(metaDateIso())));
+    L.push("狀態：雷達中");
+    L.push("(卡片：" + [card.channel, card.tag].filter(Boolean).join("／") + ")");
+    return L.join("\n");
+  }
+  function radarTextAll(cards) {
+    return cards.map(radarText).join("\n\n---\n\n");
+  }
+  function copyText(text) {
+    const fallback = () => {
+      try {
+        const ta = document.createElement("textarea");
+        ta.value = text;
+        ta.setAttribute("readonly", "");
+        ta.style.cssText = "position:fixed;top:0;left:0;opacity:0;";
+        document.body.appendChild(ta);
+        ta.select();
+        ta.setSelectionRange(0, text.length);
+        const ok = document.execCommand("copy");
+        document.body.removeChild(ta);
+        return ok;
+      } catch (e) {
+        return false;
+      }
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      return navigator.clipboard.writeText(text).then(() => true).catch(() => fallback());
+    }
+    return Promise.resolve(fallback());
+  }
+  function CopyButton({ label, getText, ariaLabel, className }) {
+    const [state, setState] = React.useState(null);
+    const timer = React.useRef(null);
+    React.useEffect(() => () => clearTimeout(timer.current), []);
+    const onClick = (e) => {
+      e.stopPropagation();
+      copyText(getText()).then((ok) => {
+        setState(ok ? "ok" : "fail");
+        clearTimeout(timer.current);
+        timer.current = setTimeout(() => setState(null), 2e3);
+      });
+    };
+    return /* @__PURE__ */ React.createElement("button", { className: className || "copy-btn", "aria-label": ariaLabel || label, onPointerDown: (e) => e.stopPropagation(), onClick }, state === "ok" ? "✓ 已複製" : state === "fail" ? "複製失敗" : label, /* @__PURE__ */ React.createElement("span", { className: "sr-only", "aria-live": "polite" }, state === "ok" ? "已複製到剪貼簿" : state === "fail" ? "複製失敗，請再試一次" : ""));
+  }
   function metaDateIso() {
     const m = /(\d\d)\/(\d\d)\/(\d{4})/.exec(APP_META.updated);
     return m ? m[3] + m[1] + m[2] : "";
@@ -420,7 +504,7 @@
       document.body
     );
   }
-  function CardView({ card, idx, total, onManualSpeak, isFav, onToggleFav }) {
+  function CardView({ card, idx, total, onManualSpeak, isFav, onToggleFav, showCopy }) {
     const [lang, setLang] = useState(null);
     const [popup, setPopup] = useState(null);
     const [speaking, setSpeaking] = useState(false);
@@ -538,7 +622,7 @@
       return /* @__PURE__ */ React.createElement("span", { key: i, className: "clickable-word", onPointerDown: (e) => e.stopPropagation(), onClick: (e) => handleWordClick(e, chunk) }, chunk);
     }), [card.en, handleWordClick]);
     const monoLabel = { fontFamily: "'Courier New',monospace", fontSize: "11px", letterSpacing: "0.12em", textTransform: "uppercase" };
-    return /* @__PURE__ */ React.createElement("div", { style: { padding: "10px 32px 32px" } }, /* @__PURE__ */ React.createElement("div", { style: { height: "2px", background: card.color, opacity: 0.6, margin: "-10px -32px 14px", width: "calc(100% + 64px)" } }), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", flexWrap: "wrap", gap: "4px 10px", marginBottom: "10px" } }, /* @__PURE__ */ React.createElement("span", { style: { display: "inline-block", width: "18px", height: "1px", background: card.color, flexShrink: 0 } }), /* @__PURE__ */ React.createElement("span", { style: { ...monoLabel, color: cc } }, card.channel), /* @__PURE__ */ React.createElement("span", { style: { ...monoLabel, color: "var(--text-tertiary)" } }, card.tag), showDate && /* @__PURE__ */ React.createElement("span", { style: { ...monoLabel, color: "var(--text-tertiary)", border: "1px solid var(--divider)", padding: "0 6px" } }, fmtDate(card._date)), /* @__PURE__ */ React.createElement("span", { style: { marginLeft: "auto", display: "flex", alignItems: "center", gap: "2px" } }, /* @__PURE__ */ React.createElement("span", { style: { ...monoLabel, color: "var(--text-tertiary)" } }, { zh: "中文", en: "EN" }[speakLangOf(card, lang)]), onToggleFav && /* @__PURE__ */ React.createElement(
+    return /* @__PURE__ */ React.createElement("div", { style: { padding: "10px 32px 32px" } }, /* @__PURE__ */ React.createElement("div", { style: { height: "2px", background: card.color, opacity: 0.6, margin: "-10px -32px 14px", width: "calc(100% + 64px)" } }), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", flexWrap: "wrap", gap: "4px 10px", marginBottom: "10px" } }, /* @__PURE__ */ React.createElement("span", { style: { display: "inline-block", width: "18px", height: "1px", background: card.color, flexShrink: 0 } }), /* @__PURE__ */ React.createElement("span", { style: { ...monoLabel, color: cc } }, card.channel), /* @__PURE__ */ React.createElement("span", { style: { ...monoLabel, color: "var(--text-tertiary)" } }, card.tag), showDate && /* @__PURE__ */ React.createElement("span", { style: { ...monoLabel, color: "var(--text-tertiary)", border: "1px solid var(--divider)", padding: "0 6px" } }, fmtDate(card._date)), /* @__PURE__ */ React.createElement("span", { style: { marginLeft: "auto", display: "flex", alignItems: "center", gap: "2px" } }, /* @__PURE__ */ React.createElement("span", { style: { ...monoLabel, color: "var(--text-tertiary)" } }, { zh: "中文", en: "EN" }[speakLangOf(card, lang)]), showCopy && /* @__PURE__ */ React.createElement(CopyButton, { label: "複製這張", ariaLabel: "複製這張為雷達池格式", getText: () => radarText(card) }), onToggleFav && /* @__PURE__ */ React.createElement(
       "button",
       {
         className: "speak-btn" + (isFav ? " active" : ""),
@@ -1091,7 +1175,7 @@
       },
       sub,
       sub === FAV_TAB && favs.length > 0 ? " " + favs.length : ""
-    ))), isPast && /* @__PURE__ */ React.createElement("div", { className: "sub-row", style: { display: "flex", gap: "8px", padding: "6px 32px 4px", overflowX: "auto" } }, /* @__PURE__ */ React.createElement("button", { className: "date-chip", onClick: () => setTodaySub("全部"), "aria-label": "回到今天的晨報" }, "← 今天"), (pastList || []).map((d) => /* @__PURE__ */ React.createElement("button", { key: d, className: "date-chip" + (d === pastDate ? " on" : ""), "aria-pressed": d === pastDate, onClick: () => setPastDate(d) }, fmtDate(d, true)))), /* @__PURE__ */ React.createElement("div", { style: { padding: "0 32px", marginTop: "6px" } }, /* @__PURE__ */ React.createElement("div", { className: "rule" })), resumeMsg && /* @__PURE__ */ React.createElement("div", { className: "running-header", style: { padding: "6px 32px", animation: "fadeInOut 1.5s ease forwards" } }, "繼續閱讀 ", resumeMsg.idx + 1, "/", resumeMsg.total)), /* @__PURE__ */ React.createElement(
+    ))), isPast && /* @__PURE__ */ React.createElement("div", { className: "sub-row", style: { display: "flex", gap: "8px", padding: "6px 32px 4px", overflowX: "auto" } }, /* @__PURE__ */ React.createElement("button", { className: "date-chip", onClick: () => setTodaySub("全部"), "aria-label": "回到今天的晨報" }, "← 今天"), (pastList || []).map((d) => /* @__PURE__ */ React.createElement("button", { key: d, className: "date-chip" + (d === pastDate ? " on" : ""), "aria-pressed": d === pastDate, onClick: () => setPastDate(d) }, fmtDate(d, true)))), isFavTab && total > 0 && /* @__PURE__ */ React.createElement("div", { className: "sub-row", style: { display: "flex", alignItems: "center", gap: "10px", padding: "6px 32px 4px", flexWrap: "wrap" } }, /* @__PURE__ */ React.createElement(CopyButton, { label: "複製全部 " + total + " 張", ariaLabel: "複製全部 " + total + " 張收藏為雷達池格式", getText: () => radarTextAll(cards) }), /* @__PURE__ */ React.createElement("span", { className: "running-header" }, "雷達池格式 · 貼進 Notion")), /* @__PURE__ */ React.createElement("div", { style: { padding: "0 32px", marginTop: "6px" } }, /* @__PURE__ */ React.createElement("div", { className: "rule" })), resumeMsg && /* @__PURE__ */ React.createElement("div", { className: "running-header", style: { padding: "6px 32px", animation: "fadeInOut 1.5s ease forwards" } }, "繼續閱讀 ", resumeMsg.idx + 1, "/", resumeMsg.total)), /* @__PURE__ */ React.createElement(
       "div",
       {
         className: "swipe-area",
@@ -1099,7 +1183,7 @@
         onTouchStart: isEmbed ? void 0 : onTouchStart,
         onTouchEnd: isEmbed ? void 0 : onTouchEnd
       },
-      isFlow ? /* @__PURE__ */ React.createElement(HeatmapView, null) : isPerf ? /* @__PURE__ */ React.createElement(PerfView, null) : total === 0 ? /* @__PURE__ */ React.createElement("div", { className: "card-slide", style: { position: "relative", transform: "none" } }, /* @__PURE__ */ React.createElement("p", { className: "empty-note", role: "status" }, emptyText || "這個頻道今天沒有卡片。")) : atEnd ? /* @__PURE__ */ React.createElement("div", { className: "card-slide", style: { position: "relative", transform: "none" } }, /* @__PURE__ */ React.createElement(EndScreen, { onPrev: () => go(total - 1), onTop: goTop, showDiscuss: !isPast && !isFavTab })) : /* @__PURE__ */ React.createElement("div", { className: "card-slide", key: cardUid(cards[idx]), style: { position: "relative", transform: "none" } }, /* @__PURE__ */ React.createElement(CardView, { card: cards[idx], idx, total, onManualSpeak: stopPlay, isFav: favSet.has(cardUid(cards[idx])), onToggleFav: toggleFav }))
+      isFlow ? /* @__PURE__ */ React.createElement(HeatmapView, null) : isPerf ? /* @__PURE__ */ React.createElement(PerfView, null) : total === 0 ? /* @__PURE__ */ React.createElement("div", { className: "card-slide", style: { position: "relative", transform: "none" } }, /* @__PURE__ */ React.createElement("p", { className: "empty-note", role: "status" }, emptyText || "這個頻道今天沒有卡片。")) : atEnd ? /* @__PURE__ */ React.createElement("div", { className: "card-slide", style: { position: "relative", transform: "none" } }, /* @__PURE__ */ React.createElement(EndScreen, { onPrev: () => go(total - 1), onTop: goTop, showDiscuss: !isPast && !isFavTab })) : /* @__PURE__ */ React.createElement("div", { className: "card-slide", key: cardUid(cards[idx]), style: { position: "relative", transform: "none" } }, /* @__PURE__ */ React.createElement(CardView, { card: cards[idx], idx, total, onManualSpeak: stopPlay, isFav: favSet.has(cardUid(cards[idx])), onToggleFav: toggleFav, showCopy: isFavTab }))
     ), /* @__PURE__ */ React.createElement("div", { className: "nav-bar" }, /* @__PURE__ */ React.createElement("button", { className: "nav-btn", "aria-label": "上一張", onClick: () => {
       stopPlay();
       go(idx - 1);

@@ -89,6 +89,84 @@ function loadFavs() {
 function saveFavs(a) { ls.set(FAV_KEY, JSON.stringify(a)); }
 const cardUid = (c) => (c._date || '') + '|' + c.id;
 
+// ===== 複製為「忽視雷達池」格式(Notion 欄位:代號/公司/忽視原因/拐點證據/風險/下一個驗證點/來源/入池日/狀態) =====
+// 卡片 zh 的分段標題每天寫法略有不同,這裡盡力切;切不出「忽視原因」就把整段原文放進「備註」,不丟資訊。
+const RADAR_LABELS = [
+  ['who', /(?:這家公司)?做什麼[:：]/],
+  ['ign', /(?:為什麼被忽視|它被忽視的原因|被忽視的原因)[:：]/],
+  ['chg', /(?:什麼正在改變|正在改變的是|正在改變的有[^:：]{0,12}|正在改變)[:：]/],
+  ['risk', /風險與反方論點[:：]/],
+];
+function splitRadarZh(zh) {
+  const hits = [];
+  RADAR_LABELS.forEach(([k, re]) => { const m = re.exec(zh); if (m) hits.push({ k, s: m.index, e: m.index + m[0].length }); });
+  hits.sort((a, b) => a.s - b.s);
+  const out = { pre: (hits.length ? zh.slice(0, hits[0].s) : zh).trim() };
+  hits.forEach((h, i) => { out[h.k] = zh.slice(h.e, i + 1 < hits.length ? hits[i + 1].s : zh.length).trim(); });
+  return out;
+}
+function radarText(card) {
+  const clean = (s) => (s || '').replace(/這是研究線索[，,]\s*不是投資建議。?/g, '').replace(/\s+/g, ' ').trim();
+  const iso = (d8) => /^\d{8}$/.test(d8 || '') ? d8.slice(0, 4) + '-' + d8.slice(4, 6) + '-' + d8.slice(6, 8) : '';
+  const stocks = card.stocks || [];
+  const L = [];
+  L.push('代號：' + (stocks.map(s => s.t).filter(Boolean).join('、') || '(無)'));
+  const sp = splitRadarZh(card.zh || '');
+  const structured = !!sp.ign;
+  if (structured) {
+    const who = sp.who || sp.pre;
+    if (who) L.push('公司：' + clean(who));
+    L.push('忽視原因：' + clean(sp.ign));
+    if (sp.chg) L.push('拐點證據：' + clean(sp.chg));
+    if (sp.risk) L.push('風險：' + clean(sp.risk));
+  } else {
+    if (stocks.length) L.push('公司：' + stocks.map(s => s.t + ' ' + (s.n || '')).join('；').trim());
+    L.push('備註：' + clean(card.zh));
+  }
+  const vm = /下一個驗證點\s*(.+)$/.exec(card.status || '');
+  if (vm) L.push('下一個驗證點：' + vm[1].trim());
+  if (card.url) L.push('來源：' + card.url);
+  L.push('入池日：' + (iso(card._date) || iso(metaDateIso())));
+  L.push('狀態：雷達中');
+  L.push('(卡片：' + [card.channel, card.tag].filter(Boolean).join('／') + ')');
+  return L.join('\n');
+}
+function radarTextAll(cards) { return cards.map(radarText).join('\n\n---\n\n'); }
+// 寫入剪貼簿:先用 Clipboard API,失敗或不支援就退回隱藏 textarea + execCommand;都失敗回 false
+function copyText(text) {
+  const fallback = () => {
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = text; ta.setAttribute('readonly', ''); ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0;';
+      document.body.appendChild(ta); ta.select(); ta.setSelectionRange(0, text.length);
+      const ok = document.execCommand('copy'); document.body.removeChild(ta); return ok;
+    } catch (e) { return false; }
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    return navigator.clipboard.writeText(text).then(() => true).catch(() => fallback());
+  }
+  return Promise.resolve(fallback());
+}
+function CopyButton({ label, getText, ariaLabel, className }) {
+  const [state, setState] = React.useState(null);   // null | 'ok' | 'fail'
+  const timer = React.useRef(null);
+  React.useEffect(() => () => clearTimeout(timer.current), []);
+  const onClick = (e) => {
+    e.stopPropagation();
+    copyText(getText()).then(ok => {
+      setState(ok ? 'ok' : 'fail');
+      clearTimeout(timer.current);
+      timer.current = setTimeout(() => setState(null), 2000);
+    });
+  };
+  return (
+    <button className={className || 'copy-btn'} aria-label={ariaLabel || label} onPointerDown={e => e.stopPropagation()} onClick={onClick}>
+      {state === 'ok' ? '✓ 已複製' : state === 'fail' ? '複製失敗' : label}
+      <span className="sr-only" aria-live="polite">{state === 'ok' ? '已複製到剪貼簿' : state === 'fail' ? '複製失敗，請再試一次' : ''}</span>
+    </button>
+  );
+}
+
 // ===== 日期:APP_META.updated = "updated MM/DD/YYYY" =====
 function metaDateIso() {
   const m = /(\d\d)\/(\d\d)\/(\d{4})/.exec(APP_META.updated);
@@ -292,7 +370,7 @@ function WordPopup({ popup, onSpeak }) {
   );
 }
 
-function CardView({ card, idx, total, onManualSpeak, isFav, onToggleFav }) {
+function CardView({ card, idx, total, onManualSpeak, isFav, onToggleFav, showCopy }) {
   const [lang, setLang] = useState(null);
   const [popup, setPopup] = useState(null);
   const [speaking, setSpeaking] = useState(false);
@@ -407,6 +485,7 @@ function CardView({ card, idx, total, onManualSpeak, isFav, onToggleFav }) {
         {showDate && <span style={{ ...monoLabel, color:"var(--text-tertiary)", border:"1px solid var(--divider)", padding:"0 6px" }}>{fmtDate(card._date)}</span>}
         <span style={{ marginLeft:"auto", display:"flex", alignItems:"center", gap:"2px" }}>
           <span style={{ ...monoLabel, color:"var(--text-tertiary)" }}>{ {zh:"中文",en:"EN"}[speakLangOf(card, lang)] }</span>
+          {showCopy && <CopyButton label="複製這張" ariaLabel="複製這張為雷達池格式" getText={() => radarText(card)} />}
           {onToggleFav && (
             <button className={"speak-btn" + (isFav ? " active" : "")} aria-label={isFav ? "取消收藏" : "加入收藏"} aria-pressed={!!isFav} title={isFav ? "取消收藏" : "加入收藏"}
               onPointerDown={e => e.stopPropagation()} onClick={e => { e.stopPropagation(); onToggleFav(card); }}>{isFav ? "★" : "☆"}</button>
@@ -1032,6 +1111,12 @@ function App() {
             ))}
           </div>
         )}
+        {isFavTab && total > 0 && (
+          <div className="sub-row" style={{ display:"flex", alignItems:"center", gap:"10px", padding:"6px 32px 4px", flexWrap:"wrap" }}>
+            <CopyButton label={"複製全部 " + total + " 張"} ariaLabel={"複製全部 " + total + " 張收藏為雷達池格式"} getText={() => radarTextAll(cards)} />
+            <span className="running-header">雷達池格式 · 貼進 Notion</span>
+          </div>
+        )}
         <div style={{ padding:"0 32px", marginTop:"6px" }}><div className="rule" /></div>
         {resumeMsg && (
           <div className="running-header" style={{ padding:"6px 32px", animation:"fadeInOut 1.5s ease forwards" }}>
@@ -1058,7 +1143,7 @@ function App() {
           </div>
         ) : (
           <div className="card-slide" key={cardUid(cards[idx])} style={{ position:"relative", transform:"none" }}>
-            <CardView card={cards[idx]} idx={idx} total={total} onManualSpeak={stopPlay} isFav={favSet.has(cardUid(cards[idx]))} onToggleFav={toggleFav} />
+            <CardView card={cards[idx]} idx={idx} total={total} onManualSpeak={stopPlay} isFav={favSet.has(cardUid(cards[idx]))} onToggleFav={toggleFav} showCopy={isFavTab} />
           </div>
         )}
       </div>
