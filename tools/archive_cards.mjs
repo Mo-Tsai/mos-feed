@@ -26,7 +26,7 @@ function parseHtml(html) {
   const dm = /updated (\d\d)\/(\d\d)\/(\d{4})/.exec(html);
   if (!dm) throw new Error('index.html 找不到 "updated MM/DD/YYYY"');
   const date = dm[3] + dm[1] + dm[2];
-  const m = /const CARDS = (\[\n[\s\S]*?\n\]);/.exec(html);
+  const m = /const CARDS = (\[\r?\n[\s\S]*?\r?\n\]);/.exec(html);
   if (!m) throw new Error('index.html 找不到 CARDS 陣列');
   let cards;
   try { cards = JSON.parse(m[1]); }
